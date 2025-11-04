@@ -2,7 +2,7 @@
 CRUD operations using Supabase client.
 """
 from supabase import Client
-from . import models
+from . import schemas
 from typing import List, Optional
 from datetime import datetime
 
@@ -26,7 +26,7 @@ async def get_goal(supabase: Client, goal_id: int) -> Optional[dict]:
     return None
 
 
-async def create_goal(supabase: Client, goal: models.GoalCreate) -> dict:
+async def create_goal(supabase: Client, goal: schemas.GoalCreate) -> dict:
     """
     Create a new goal.
     """
@@ -48,7 +48,7 @@ async def create_goal(supabase: Client, goal: models.GoalCreate) -> dict:
 async def update_goal(
     supabase: Client,
     goal_id: int,
-    goal: models.GoalUpdate
+    goal: schemas.GoalUpdate
 ) -> Optional[dict]:
     """
     Update an existing goal.

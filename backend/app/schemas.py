@@ -1,29 +1,36 @@
-from sqlalchemy import Column, Integer, String, DateTime, Enum as SQLEnum
-from sqlalchemy.sql import func
-from .database import Base
-import enum
+from pydantic import BaseModel, Field
+from typing import Optional
+from datetime import datetime
+from enum import Enum
 
 
-class GoalStatus(str, enum.Enum):
+class GoalStatus(str, Enum):
     PENDING = "pending"
     IN_PROGRESS = "in_progress"
     COMPLETED = "completed"
 
 
-class Goal(Base):
-    __tablename__ = "goals"
+class GoalBase(BaseModel):
+    title: str = Field(..., min_length=1, max_length=200)
+    description: Optional[str] = None
+    status: GoalStatus = GoalStatus.PENDING
+    target_date: Optional[datetime] = None
 
-    id = Column(Integer, primary_key=True, index=True)
-    title = Column(String(200), nullable=False)
-    description = Column(String, nullable=True)
-    status = Column(
-        SQLEnum(GoalStatus),
-        nullable=False,
-        default=GoalStatus.PENDING
-    )
-    target_date = Column(DateTime(timezone=True), nullable=True)
-    created_at = Column(
-        DateTime(timezone=True),
-        server_default=func.now(),
-        nullable=False
-    )
+
+class GoalCreate(GoalBase):
+    pass
+
+
+class GoalUpdate(BaseModel):
+    title: Optional[str] = Field(None, min_length=1, max_length=200)
+    description: Optional[str] = None
+    status: Optional[GoalStatus] = None
+    target_date: Optional[datetime] = None
+
+
+class Goal(GoalBase):
+    id: int
+    created_at: datetime
+
+    class Config:
+        from_attributes = True

@@ -4,18 +4,36 @@ from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
 from supabase import Client
 from pathlib import Path
+import os
 
-from . import models, crud
+from . import schemas, crud
 from .supabase_client import get_supabase
 
 app = FastAPI(title="Goal Tracker API", version="1.0.0")
 
-# CORS configuration
+# CORS configuration - environment-aware
+ENVIRONMENT = os.getenv("ENVIRONMENT", "development")
+
+if ENVIRONMENT == "production":
+    # Production: Only allow specific origins
+    allowed_origins = [
+        "https://bnmdrvslwmuimlpkqqfq.supabase.co",
+        # Add your production frontend URL here
+    ]
+else:
+    # Development: Allow localhost
+    allowed_origins = [
+        "http://localhost:5173",  # Vite dev server
+        "http://localhost:3000",  # Alternative React dev port
+        "http://localhost:80",    # Docker frontend
+        "http://localhost",
+    ]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Configure appropriately for production
+    allow_origins=allowed_origins,
     allow_credentials=True,
-    allow_methods=["*"],
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     allow_headers=["*"],
 )
 
@@ -35,13 +53,13 @@ async def health_check():
     return {"status": "healthy"}
 
 
-@app.get("/api/goals", response_model=list[models.Goal])
+@app.get("/api/goals", response_model=list[schemas.Goal])
 async def read_goals(supabase: Client = Depends(get_supabase)):
     goals = await crud.get_goals(supabase)
     return goals
 
 
-@app.get("/api/goals/{goal_id}", response_model=models.Goal)
+@app.get("/api/goals/{goal_id}", response_model=schemas.Goal)
 async def read_goal(goal_id: int, supabase: Client = Depends(get_supabase)):
     goal = await crud.get_goal(supabase, goal_id)
     if goal is None:
@@ -49,15 +67,15 @@ async def read_goal(goal_id: int, supabase: Client = Depends(get_supabase)):
     return goal
 
 
-@app.post("/api/goals", response_model=models.Goal, status_code=201)
-async def create_goal(goal: models.GoalCreate, supabase: Client = Depends(get_supabase)):
+@app.post("/api/goals", response_model=schemas.Goal, status_code=201)
+async def create_goal(goal: schemas.GoalCreate, supabase: Client = Depends(get_supabase)):
     return await crud.create_goal(supabase, goal)
 
 
-@app.put("/api/goals/{goal_id}", response_model=models.Goal)
+@app.put("/api/goals/{goal_id}", response_model=schemas.Goal)
 async def update_goal(
     goal_id: int,
-    goal: models.GoalUpdate,
+    goal: schemas.GoalUpdate,
     supabase: Client = Depends(get_supabase)
 ):
     updated_goal = await crud.update_goal(supabase, goal_id, goal)

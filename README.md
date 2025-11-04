@@ -263,7 +263,7 @@ gcloud run deploy goal-tracker-frontend \
 
 1. **Hot Reload**: Both frontend and backend support hot reload in development mode
 2. **API Documentation**: FastAPI automatically generates interactive API docs at `/docs`
-3. **Database Migrations**: Consider using Alembic for production database migrations
+3. **Database Migrations**: Use Supabase Dashboard SQL Editor for database schema changes
 4. **CORS**: Currently configured for development; update for production
 
 ## Troubleshooting
