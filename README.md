@@ -1,15 +1,15 @@
 # Goal Tracker App
 
-A full-stack goal tracking application built with FastAPI, PostgreSQL, React, and Docker.
+A full-stack goal tracking application built with FastAPI, Supabase, React, and Docker.
 
 ## Tech Stack
 
 ### Backend
 - **FastAPI** - Modern Python web framework
 - **Pydantic** - Data validation using Python type annotations
-- **SQLAlchemy** - SQL toolkit and ORM
-- **PostgreSQL** - Relational database
-- **asyncpg** - Async PostgreSQL driver
+- **Supabase** - Open-source Firebase alternative (PostgreSQL, Auth, Storage, Realtime)
+- **PostgreSQL** - Relational database (via Supabase)
+- **PostgREST** - Automatic API generation
 
 ### Frontend
 - **React** - UI library

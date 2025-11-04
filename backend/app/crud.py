@@ -1,59 +1,91 @@
-from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy.future import select
-from . import schemas, models
+"""
+CRUD operations using Supabase client.
+"""
+from supabase import Client
+from . import models
 from typing import List, Optional
+from datetime import datetime
 
 
-async def get_goals(db: AsyncSession) -> List[schemas.Goal]:
-    result = await db.execute(select(schemas.Goal).order_by(schemas.Goal.created_at.desc()))
-    return result.scalars().all()
+async def get_goals(supabase: Client) -> List[dict]:
+    """
+    Retrieve all goals ordered by created_at descending.
+    """
+    response = supabase.table("goals").select("*").order("created_at", desc=True).execute()
+    return response.data
 
 
-async def get_goal(db: AsyncSession, goal_id: int) -> Optional[schemas.Goal]:
-    result = await db.execute(select(schemas.Goal).filter(schemas.Goal.id == goal_id))
-    return result.scalar_one_or_none()
+async def get_goal(supabase: Client, goal_id: int) -> Optional[dict]:
+    """
+    Retrieve a single goal by ID.
+    """
+    response = supabase.table("goals").select("*").eq("id", goal_id).execute()
+
+    if response.data and len(response.data) > 0:
+        return response.data[0]
+    return None
 
 
-async def create_goal(db: AsyncSession, goal: models.GoalCreate) -> schemas.Goal:
-    db_goal = schemas.Goal(
-        title=goal.title,
-        description=goal.description,
-        status=goal.status,
-        target_date=goal.target_date
-    )
-    db.add(db_goal)
-    await db.commit()
-    await db.refresh(db_goal)
-    return db_goal
+async def create_goal(supabase: Client, goal: models.GoalCreate) -> dict:
+    """
+    Create a new goal.
+    """
+    goal_data = {
+        "title": goal.title,
+        "description": goal.description,
+        "status": goal.status.value,
+        "target_date": goal.target_date.isoformat() if goal.target_date else None,
+    }
+
+    response = supabase.table("goals").insert(goal_data).execute()
+
+    if response.data and len(response.data) > 0:
+        return response.data[0]
+
+    raise Exception("Failed to create goal")
 
 
 async def update_goal(
-    db: AsyncSession,
+    supabase: Client,
     goal_id: int,
     goal: models.GoalUpdate
-) -> Optional[schemas.Goal]:
-    result = await db.execute(select(schemas.Goal).filter(schemas.Goal.id == goal_id))
-    db_goal = result.scalar_one_or_none()
+) -> Optional[dict]:
+    """
+    Update an existing goal.
+    """
+    # Build update data, excluding unset fields
+    update_data = {}
 
-    if db_goal is None:
-        return None
+    if goal.title is not None:
+        update_data["title"] = goal.title
+    if goal.description is not None:
+        update_data["description"] = goal.description
+    if goal.status is not None:
+        update_data["status"] = goal.status.value
+    if goal.target_date is not None:
+        update_data["target_date"] = goal.target_date.isoformat()
 
-    update_data = goal.model_dump(exclude_unset=True)
-    for field, value in update_data.items():
-        setattr(db_goal, field, value)
+    if not update_data:
+        # Nothing to update, return the existing goal
+        return await get_goal(supabase, goal_id)
 
-    await db.commit()
-    await db.refresh(db_goal)
-    return db_goal
+    response = supabase.table("goals").update(update_data).eq("id", goal_id).execute()
+
+    if response.data and len(response.data) > 0:
+        return response.data[0]
+
+    return None
 
 
-async def delete_goal(db: AsyncSession, goal_id: int) -> bool:
-    result = await db.execute(select(schemas.Goal).filter(schemas.Goal.id == goal_id))
-    db_goal = result.scalar_one_or_none()
-
-    if db_goal is None:
+async def delete_goal(supabase: Client, goal_id: int) -> bool:
+    """
+    Delete a goal by ID.
+    Returns True if successful, False if goal not found.
+    """
+    # First check if goal exists
+    existing_goal = await get_goal(supabase, goal_id)
+    if not existing_goal:
         return False
 
-    await db.delete(db_goal)
-    await db.commit()
+    response = supabase.table("goals").delete().eq("id", goal_id).execute()
     return True
