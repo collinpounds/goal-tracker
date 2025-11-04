@@ -9,6 +9,10 @@ venv/
 .venv
 ENV/
 .env
+*.egg-info/
+.eggs/
+dist/
+build/
 
 # Node
 node_modules/

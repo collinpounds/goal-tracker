@@ -3,8 +3,8 @@ version: '3.8'
 services:
   backend:
     build:
-      context: ./backend
-      dockerfile: Dockerfile
+      context: .
+      dockerfile: ./backend/Dockerfile
     container_name: goal_tracker_backend
     env_file:
       - .env
@@ -24,20 +24,6 @@ services:
       timeout: 10s
       retries: 3
       start_period: 40s
-
-  frontend:
-    build:
-      context: ./frontend
-      dockerfile: Dockerfile
-    container_name: goal_tracker_frontend
-    ports:
-      - "80:80"
-    depends_on:
-      - backend
-    networks:
-      - app_network
-    environment:
-      - VITE_API_URL=${VITE_API_URL:-http://localhost:8000}
 
 networks:
   app_network:

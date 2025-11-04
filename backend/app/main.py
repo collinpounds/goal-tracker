@@ -1,41 +1,33 @@
-from fastapi import FastAPI, Depends, HTTPException
+from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import FileResponse
-from supabase import Client
 from pathlib import Path
-import os
 
-from . import schemas, crud
-from .supabase_client import get_supabase
+from .config import settings
+from .routers import goals, health
 
 app = FastAPI(title="Goal Tracker API", version="1.0.0")
 
-# CORS configuration - environment-aware
-ENVIRONMENT = os.getenv("ENVIRONMENT", "development")
-
-if ENVIRONMENT == "production":
-    # Production: Only allow specific origins
-    allowed_origins = [
-        "https://bnmdrvslwmuimlpkqqfq.supabase.co",
-        # Add your production frontend URL here
-    ]
-else:
-    # Development: Allow localhost
-    allowed_origins = [
-        "http://localhost:5173",  # Vite dev server
-        "http://localhost:3000",  # Alternative React dev port
-        "http://localhost:80",    # Docker frontend
-        "http://localhost",
-    ]
-
+# CORS configuration
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=allowed_origins,
+    allow_origins=settings.CORS_ORIGINS,
     allow_credentials=True,
     allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     allow_headers=["*"],
 )
+
+# Health check endpoint at root (for Docker healthcheck)
+@app.get("/health")
+async def health_check():
+    """Health check endpoint."""
+    return {"status": "healthy"}
+
+
+# Include routers
+app.include_router(health.router, prefix="/api", tags=["health"])
+app.include_router(goals.router, prefix="/api", tags=["goals"])
 
 # Mount static files (frontend dist folder)
 static_dir = Path(__file__).parent.parent / "static"
@@ -43,59 +35,15 @@ if static_dir.exists():
     app.mount("/assets", StaticFiles(directory=str(static_dir / "assets")), name="assets")
 
 
-@app.get("/api")
-async def api_root():
-    return {"message": "Goal Tracker API", "status": "running"}
-
-
-@app.get("/health")
-async def health_check():
-    return {"status": "healthy"}
-
-
-@app.get("/api/goals", response_model=list[schemas.Goal])
-async def read_goals(supabase: Client = Depends(get_supabase)):
-    goals = await crud.get_goals(supabase)
-    return goals
-
-
-@app.get("/api/goals/{goal_id}", response_model=schemas.Goal)
-async def read_goal(goal_id: int, supabase: Client = Depends(get_supabase)):
-    goal = await crud.get_goal(supabase, goal_id)
-    if goal is None:
-        raise HTTPException(status_code=404, detail="Goal not found")
-    return goal
-
-
-@app.post("/api/goals", response_model=schemas.Goal, status_code=201)
-async def create_goal(goal: schemas.GoalCreate, supabase: Client = Depends(get_supabase)):
-    return await crud.create_goal(supabase, goal)
-
-
-@app.put("/api/goals/{goal_id}", response_model=schemas.Goal)
-async def update_goal(
-    goal_id: int,
-    goal: schemas.GoalUpdate,
-    supabase: Client = Depends(get_supabase)
-):
-    updated_goal = await crud.update_goal(supabase, goal_id, goal)
-    if updated_goal is None:
-        raise HTTPException(status_code=404, detail="Goal not found")
-    return updated_goal
-
-
-@app.delete("/api/goals/{goal_id}", status_code=204)
-async def delete_goal(goal_id: int, supabase: Client = Depends(get_supabase)):
-    success = await crud.delete_goal(supabase, goal_id)
-    if not success:
-        raise HTTPException(status_code=404, detail="Goal not found")
-    return None
-
-
 # Serve frontend for all other routes (SPA fallback)
+# This MUST be last as it catches all routes
 @app.get("/{full_path:path}")
 async def serve_frontend(full_path: str):
     """Serve the React frontend for all non-API routes."""
+    # Don't serve frontend for API routes
+    if full_path.startswith("api/") or full_path.startswith("health"):
+        return {"message": "Not found"}
+
     index_file = static_dir / "index.html"
     if index_file.exists():
         return FileResponse(str(index_file))

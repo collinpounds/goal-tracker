@@ -1,3 +1,13 @@
+# Build frontend first
+FROM node:18-alpine AS frontend-build
+
+WORKDIR /frontend
+COPY frontend/package*.json ./
+RUN npm install
+COPY frontend/ ./
+RUN npm run build
+
+# Backend with frontend static files
 FROM python:3.11-slim
 
 WORKDIR /app
@@ -9,13 +19,16 @@ RUN apt-get update && apt-get install -y \
     && rm -rf /var/lib/apt/lists/*
 
 # Install dependencies
-COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+COPY backend/pyproject.toml .
+RUN pip install --no-cache-dir .
 
 # Copy application
-COPY ./app ./app
+COPY backend/app ./app
 
-# Expose port
+# Copy frontend build from frontend-build stage
+COPY --from=frontend-build /frontend/dist ./static
+
+# Expose port (backend serves both API and frontend)
 EXPOSE 8000
 
 # Start the application
