@@ -10,6 +10,7 @@ import {
 } from '../models/goalSlice';
 import GoalCard from '../components/GoalCard';
 import GoalForm from '../components/GoalForm';
+import VersionDisplay from '../components/VersionDisplay';
 
 function GoalsView() {
   const dispatch = useDispatch();
@@ -104,6 +105,7 @@ function GoalsView() {
           </div>
         )}
       </div>
+      <VersionDisplay />
     </div>
   );
 }
