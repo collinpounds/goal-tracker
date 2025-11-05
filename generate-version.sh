@@ -17,6 +17,9 @@ BUILD_NUMBER=${GITHUB_RUN_NUMBER:-0}
 # Create version string: v{build-number}-{short-sha}
 VERSION="v${BUILD_NUMBER}-${SHORT_SHA}"
 
+# Ensure the public directory exists
+mkdir -p frontend/public
+
 # Create the version info JSON file for the frontend
 cat > frontend/public/version.json << EOF
 {
