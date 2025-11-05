@@ -57,10 +57,13 @@ jobs:
           SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
         run: |
           # Install Supabase CLI
+          mkdir -p /tmp/supabase-install
+          cd /tmp/supabase-install
           curl -sL https://github.com/supabase/cli/releases/latest/download/supabase_linux_amd64.tar.gz -o supabase.tar.gz
           tar xzf supabase.tar.gz
           sudo mv supabase /usr/local/bin/supabase
-          rm supabase.tar.gz
+          cd -
+          rm -rf /tmp/supabase-install
 
           # Link to production project
           supabase link --project-ref bnmdrvslwmuimlpkqqfq --password "$SUPABASE_DB_PASSWORD"
