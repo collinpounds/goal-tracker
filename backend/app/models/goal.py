@@ -17,10 +17,27 @@ class GoalStatus(str, Enum):
 
 class GoalBase(BaseModel):
     """Base goal schema with common attributes."""
-    title: str = Field(..., min_length=1, max_length=200)
-    description: Optional[str] = None
-    status: GoalStatus = GoalStatus.PENDING
-    target_date: Optional[datetime] = None
+    title: str = Field(
+        ...,
+        min_length=1,
+        max_length=200,
+        description="The title of the goal",
+        examples=["Learn FastAPI", "Build a REST API", "Complete project documentation"]
+    )
+    description: Optional[str] = Field(
+        None,
+        description="Detailed description of the goal",
+        examples=["Complete the official FastAPI tutorial and build a sample project"]
+    )
+    status: GoalStatus = Field(
+        GoalStatus.PENDING,
+        description="Current status of the goal"
+    )
+    target_date: Optional[datetime] = Field(
+        None,
+        description="Target completion date (ISO 8601 format)",
+        examples=["2025-12-31T00:00:00"]
+    )
 
 
 class GoalCreate(GoalBase):
@@ -52,20 +69,54 @@ class GoalCreate(GoalBase):
 
 
 class GoalUpdate(BaseModel):
-    """Schema for updating an existing goal."""
-    title: Optional[str] = Field(None, min_length=1, max_length=200)
-    description: Optional[str] = None
-    status: Optional[GoalStatus] = None
-    target_date: Optional[datetime] = None
+    """Schema for updating an existing goal. All fields are optional."""
+    title: Optional[str] = Field(
+        None,
+        min_length=1,
+        max_length=200,
+        description="Updated title for the goal",
+        examples=["Learn FastAPI Advanced Topics"]
+    )
+    description: Optional[str] = Field(
+        None,
+        description="Updated description for the goal"
+    )
+    status: Optional[GoalStatus] = Field(
+        None,
+        description="Updated status for the goal"
+    )
+    target_date: Optional[datetime] = Field(
+        None,
+        description="Updated target completion date",
+        examples=["2025-12-31T00:00:00"]
+    )
 
 
 class Goal(GoalBase):
     """Complete goal schema with database fields and CRUD methods."""
-    id: int
-    created_at: datetime
+    id: int = Field(
+        ...,
+        description="Unique identifier for the goal (auto-generated)",
+        examples=[1, 42, 123]
+    )
+    created_at: datetime = Field(
+        ...,
+        description="Timestamp when the goal was created (auto-generated)",
+        examples=["2025-01-15T10:30:00Z"]
+    )
 
     class Config:
         from_attributes = True
+        json_schema_extra = {
+            "example": {
+                "id": 1,
+                "title": "Learn FastAPI",
+                "description": "Complete the official FastAPI tutorial and build a sample project",
+                "status": "in_progress",
+                "target_date": "2025-12-31T00:00:00",
+                "created_at": "2025-01-15T10:30:00"
+            }
+        }
 
     @classmethod
     async def get_all(cls, supabase: Client) -> List["Goal"]:

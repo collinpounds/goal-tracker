@@ -7,7 +7,52 @@ from pathlib import Path
 from .config import settings
 from .routers import goals, health
 
-app = FastAPI(title="Goal Tracker API", version="1.0.0")
+app = FastAPI(
+    title="Goal Tracker API",
+    version="1.0.0",
+    description="""
+## Goal Tracker REST API
+
+A modern, production-ready API for managing personal and professional goals.
+
+### Features
+
+* **Create Goals**: Add new goals with title, description, status, and target dates
+* **Track Progress**: Update goal status (pending, in_progress, completed)
+* **Manage Goals**: Update and delete goals as needed
+* **Real-time Data**: All changes immediately reflected in the database
+
+### Authentication
+
+Currently, this API does not require authentication. For production use, implement proper authentication and authorization.
+
+### Rate Limiting
+
+No rate limiting is currently enforced. Consider implementing rate limiting for production deployments.
+
+### Database
+
+This API uses Supabase (PostgreSQL) for data persistence. All timestamps are stored in UTC with timezone information.
+    """,
+    contact={
+        "name": "Goal Tracker Support",
+        "url": "https://github.com/yourusername/goal-tracker",
+    },
+    license_info={
+        "name": "MIT",
+        "url": "https://opensource.org/licenses/MIT",
+    },
+    openapi_tags=[
+        {
+            "name": "goals",
+            "description": "Operations for managing goals. Goals are the core resource of this API, representing objectives with deadlines and status tracking.",
+        },
+        {
+            "name": "health",
+            "description": "System health and status endpoints. Use these to monitor the API and database connectivity.",
+        },
+    ],
+)
 
 # CORS configuration
 app.add_middleware(

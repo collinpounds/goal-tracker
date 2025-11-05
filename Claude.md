@@ -61,17 +61,29 @@ backend/
 
 ### Frontend Structure
 
+**Architecture:** MVC pattern with Redux Toolkit and React Router
+
 ```
 frontend/
 ├── src/
-│   ├── main.jsx          # React app entry point
-│   ├── App.jsx           # Main app component with state management
-│   ├── api/
-│   │   └── goals.js      # API service layer (axios)
-│   ├── components/
-│   │   ├── GoalCard.jsx  # Goal display component
-│   │   └── GoalForm.jsx  # Create/edit goal form
-│   └── index.css         # Tailwind imports
+│   ├── main.jsx              # React app entry point
+│   ├── App.jsx               # Root component with Redux Provider & Router
+│   ├── api/                  # API service layer
+│   │   └── goals.js         # Goal API calls (axios)
+│   ├── components/           # Reusable UI components
+│   │   ├── GoalCard.jsx     # Goal display component
+│   │   └── GoalForm.jsx     # Goal form component
+│   ├── models/              # Redux slices (Model layer)
+│   │   └── goalSlice.js    # Goal state, reducers, async thunks
+│   ├── store/               # Redux store configuration
+│   │   └── index.js        # Store setup
+│   ├── routes/              # Router configuration
+│   │   └── index.jsx       # Route definitions
+│   ├── views/               # Page-level components (View layer)
+│   │   ├── GoalsView.jsx   # Main goals page
+│   │   └── NotFoundView.jsx # 404 page
+│   └── index.css            # Tailwind imports
+├── MVC_ARCHITECTURE.md       # Detailed architecture documentation
 ├── Dockerfile
 ├── package.json
 └── vite.config.js
@@ -84,8 +96,13 @@ frontend/
 - Vite 5.0.11 - [Documentation](https://vitejs.dev/)
 - Axios 1.6.5 - [Documentation](https://axios-http.com/)
 - Tailwind CSS 3.4.1 - [Documentation](https://tailwindcss.com/)
+- Redux Toolkit 2.0.1 - [Documentation](https://redux-toolkit.js.org/)
+- React Redux 9.0.4 - [Documentation](https://react-redux.js.org/)
+- React Router 6.21.2 - [Documentation](https://reactrouter.com/)
 
-**State Management:** Local React state using `useState` and `useEffect` hooks (no Redux/Context API currently)
+**State Management:** Redux Toolkit with async thunks for API operations
+
+**Architecture Details:** See [frontend/MVC_ARCHITECTURE.md](frontend/MVC_ARCHITECTURE.md) for comprehensive MVC pattern documentation
 
 ### Database
 
