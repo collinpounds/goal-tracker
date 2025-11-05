@@ -61,6 +61,11 @@ export const goalService = {
     return response.data;
   },
 
+  async getPublicGoals() {
+    const response = await api.get('/api/goals/public');
+    return response.data;
+  },
+
   async getGoal(id) {
     const response = await api.get(`/api/goals/${id}`);
     return response.data;

@@ -14,6 +14,18 @@ export const fetchGoals = createAsyncThunk(
   }
 );
 
+export const fetchPublicGoals = createAsyncThunk(
+  'goals/fetchPublicGoals',
+  async (_, { rejectWithValue }) => {
+    try {
+      const data = await goalService.getPublicGoals();
+      return data;
+    } catch (error) {
+      return rejectWithValue(error.message || 'Failed to fetch public goals');
+    }
+  }
+);
+
 export const createGoal = createAsyncThunk(
   'goals/createGoal',
   async (goalData, { rejectWithValue }) => {
@@ -52,10 +64,12 @@ export const deleteGoal = createAsyncThunk(
 
 const initialState = {
   goals: [],
+  publicGoals: [],
   loading: false,
   error: null,
   editingGoal: null,
   showForm: false,
+  activeTab: 'my-goals',
 };
 
 const goalSlice = createSlice({
@@ -75,6 +89,9 @@ const goalSlice = createSlice({
     clearError: (state) => {
       state.error = null;
     },
+    setActiveTab: (state, action) => {
+      state.activeTab = action.payload;
+    },
   },
   extraReducers: (builder) => {
     builder
@@ -88,6 +105,19 @@ const goalSlice = createSlice({
         state.goals = action.payload;
       })
       .addCase(fetchGoals.rejected, (state, action) => {
+        state.loading = false;
+        state.error = action.payload;
+      })
+      // Fetch public goals
+      .addCase(fetchPublicGoals.pending, (state) => {
+        state.loading = true;
+        state.error = null;
+      })
+      .addCase(fetchPublicGoals.fulfilled, (state, action) => {
+        state.loading = false;
+        state.publicGoals = action.payload;
+      })
+      .addCase(fetchPublicGoals.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload;
       })
@@ -140,6 +170,6 @@ const goalSlice = createSlice({
   },
 });
 
-export const { setEditingGoal, setShowForm, clearError } = goalSlice.actions;
+export const { setEditingGoal, setShowForm, clearError, setActiveTab } = goalSlice.actions;
 
 export default goalSlice.reducer;

@@ -59,6 +59,44 @@ async def read_goals(
 
 
 @router.get(
+    "/goals/public",
+    response_model=List[Goal],
+    summary="List all public goals from all users",
+    response_description="A list of public goals ordered by creation date (newest first)",
+)
+async def read_public_goals(
+    supabase: Client = Depends(get_supabase),
+    user_id: str = Depends(get_current_user_id)
+):
+    """
+    Retrieve all public goals from all authenticated users.
+
+    Returns a list of goals marked as public, ordered by creation date in descending order (newest first).
+    Only shows goals where is_public=true.
+
+    **Authentication Required:** Bearer token must be provided in Authorization header.
+
+    **Example Response:**
+    ```json
+    [
+      {
+        "id": 5,
+        "title": "Run a marathon",
+        "description": "Complete a full marathon",
+        "status": "in_progress",
+        "target_date": "2025-10-01T00:00:00Z",
+        "is_public": true,
+        "user_id": "different-user-id",
+        "created_at": "2025-01-15T10:30:00Z"
+      }
+    ]
+    ```
+    """
+    goals = await Goal.get_all_public(supabase)
+    return goals
+
+
+@router.get(
     "/goals/{goal_id}",
     response_model=Goal,
     summary="Get a single goal",

@@ -38,6 +38,10 @@ class GoalBase(BaseModel):
         description="Target completion date (ISO 8601 format)",
         examples=["2025-12-31T00:00:00"]
     )
+    is_public: bool = Field(
+        False,
+        description="Whether this goal is visible to other authenticated users"
+    )
 
 
 class GoalCreate(GoalBase):
@@ -60,6 +64,7 @@ class GoalCreate(GoalBase):
             "status": self.status.value,
             "target_date": self.target_date.isoformat() if self.target_date else None,
             "user_id": user_id,
+            "is_public": self.is_public,
         }
 
         response = supabase.table("goals").insert(goal_data).execute()
@@ -91,6 +96,10 @@ class GoalUpdate(BaseModel):
         None,
         description="Updated target completion date",
         examples=["2025-12-31T00:00:00"]
+    )
+    is_public: Optional[bool] = Field(
+        None,
+        description="Whether this goal is visible to other authenticated users"
     )
 
 
@@ -147,6 +156,26 @@ class Goal(GoalBase):
         return [cls(**goal) for goal in response.data]
 
     @classmethod
+    async def get_all_public(cls, supabase: Client) -> List["Goal"]:
+        """
+        Retrieve all public goals from all users, ordered by created_at descending.
+
+        Args:
+            supabase: Supabase client instance
+
+        Returns:
+            List of public Goal instances
+        """
+        response = (
+            supabase.table("goals")
+            .select("*")
+            .eq("is_public", True)
+            .order("created_at", desc=True)
+            .execute()
+        )
+        return [cls(**goal) for goal in response.data]
+
+    @classmethod
     async def get_by_id(cls, supabase: Client, goal_id: int, user_id: str) -> Optional["Goal"]:
         """
         Retrieve a single goal by ID for a specific user.
@@ -194,6 +223,8 @@ class Goal(GoalBase):
             update_dict["status"] = update_data.status.value
         if update_data.target_date is not None:
             update_dict["target_date"] = update_data.target_date.isoformat()
+        if update_data.is_public is not None:
+            update_dict["is_public"] = update_data.is_public
 
         if not update_dict:
             # Nothing to update, return self

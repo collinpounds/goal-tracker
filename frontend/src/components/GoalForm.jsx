@@ -6,6 +6,7 @@ export default function GoalForm({ goal, onSubmit, onCancel }) {
     description: '',
     status: 'pending',
     target_date: '',
+    is_public: false,
   });
 
   useEffect(() => {
@@ -15,6 +16,7 @@ export default function GoalForm({ goal, onSubmit, onCancel }) {
         description: goal.description || '',
         status: goal.status || 'pending',
         target_date: goal.target_date ? goal.target_date.split('T')[0] : '',
+        is_public: goal.is_public || false,
       });
     }
   }, [goal]);
@@ -86,7 +88,7 @@ export default function GoalForm({ goal, onSubmit, onCancel }) {
         </select>
       </div>
 
-      <div className="mb-6">
+      <div className="mb-4">
         <label className="block text-gray-700 font-medium mb-2">
           Target Date
         </label>
@@ -97,6 +99,19 @@ export default function GoalForm({ goal, onSubmit, onCancel }) {
           onChange={handleChange}
           className="w-full px-4 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
         />
+      </div>
+
+      <div className="mb-6">
+        <label className="flex items-center gap-2 text-gray-700 font-medium cursor-pointer">
+          <input
+            type="checkbox"
+            name="is_public"
+            checked={formData.is_public}
+            onChange={(e) => setFormData({ ...formData, is_public: e.target.checked })}
+            className="w-4 h-4 text-blue-500 border-gray-300 rounded focus:ring-2 focus:ring-blue-500"
+          />
+          <span>Make this goal public (visible to other users)</span>
+        </label>
       </div>
 
       <div className="flex gap-3">
