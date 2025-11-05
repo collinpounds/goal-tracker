@@ -1,12 +1,18 @@
 steps:
   # Build the container image
   - name: 'gcr.io/cloud-builders/docker'
-    args: 
+    args:
       - 'build'
       - '-t'
       - 'gcr.io/$PROJECT_ID/goal-tracker'
       - '-f'
       - 'Dockerfile.cloudrun'
+      - '--build-arg'
+      - 'VITE_API_URL='
+      - '--build-arg'
+      - 'VITE_SUPABASE_URL=https://bnmdrvslwmuimlpkqqfq.supabase.co'
+      - '--build-arg'
+      - 'VITE_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJubWRydnNsd211aW1scGtxcWZxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjIyMTg5MDEsImV4cCI6MjA3Nzc5NDkwMX0.4Sa_IlZ_KLetqlDPeHyYhueDWw72XqpPwZDoOERQjKg'
       - '.'
   
   # Push the container image to Container Registry
@@ -30,7 +36,7 @@ steps:
       - 'managed'
       - '--allow-unauthenticated'
       - '--set-env-vars'
-      - 'SUPABASE_URL=https://bnmdrvslwmuimlpkqqfq.supabase.co,SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJubWRydnNsd211aW1scGtxcWZxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjIyMTg5MDEsImV4cCI6MjA3Nzc5NDkwMX0.4Sa_IlZ_KLetqlDPeHyYhueDWw72XqpPwZDoOERQjKg'
+      - 'SUPABASE_URL=https://bnmdrvslwmuimlpkqqfq.supabase.co,SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJubWRydnNsd211aW1scGtxcWZxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjIyMTg5MDEsImV4cCI6MjA3Nzc5NDkwMX0.4Sa_IlZ_KLetqlDPeHyYhueDWw72XqpPwZDoOERQjKg,SUPABASE_JWT_SECRET=xLsctlfyirDKxMGpDdca05n1IK2cxqcn0ceeA6hE0HrrNBMRty7Ad8JsjDnE6L/GFBJytOhmxmT32qT8mD+A8g==,SUPABASE_SERVICE_ROLE_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJubWRydnNsd211aW1scGtxcWZxIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2MjIxODkwMSwiZXhwIjoyMDc3Nzk0OTAxfQ.0j_apsI6ghNa987OMxtzo1nlBV_USMAMxTQd-64fhp8'
 
 images:
   - 'gcr.io/$PROJECT_ID/goal-tracker'
