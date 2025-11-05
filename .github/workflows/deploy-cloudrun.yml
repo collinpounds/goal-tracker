@@ -54,7 +54,8 @@ jobs:
         run: |
           gcloud builds submit \
             --config cloudbuild.yaml \
-            --project ${{ env.PROJECT_ID }}
+            --project ${{ env.PROJECT_ID }} \
+            --suppress-logs
 
       - name: Get Cloud Run service URL
         id: get-url
