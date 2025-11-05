@@ -7,6 +7,7 @@ from typing import List
 
 from ..models.goal import Goal, GoalCreate, GoalUpdate
 from ..supabase_client import get_supabase
+from ..auth import get_current_user_id
 
 router = APIRouter()
 
@@ -14,15 +15,20 @@ router = APIRouter()
 @router.get(
     "/goals",
     response_model=List[Goal],
-    summary="List all goals",
-    response_description="A list of all goals ordered by creation date (newest first)",
+    summary="List all goals for authenticated user",
+    response_description="A list of user's goals ordered by creation date (newest first)",
 )
-async def read_goals(supabase: Client = Depends(get_supabase)):
+async def read_goals(
+    supabase: Client = Depends(get_supabase),
+    user_id: str = Depends(get_current_user_id)
+):
     """
-    Retrieve all goals from the database.
+    Retrieve all goals for the authenticated user.
 
-    Returns a list of all goals ordered by creation date in descending order (newest first).
-    The list will be empty if no goals exist.
+    Returns a list of the user's goals ordered by creation date in descending order (newest first).
+    The list will be empty if the user has no goals.
+
+    **Authentication Required:** Bearer token must be provided in Authorization header.
 
     **Example Response:**
     ```json
@@ -33,6 +39,7 @@ async def read_goals(supabase: Client = Depends(get_supabase)):
         "description": "Complete the official tutorial",
         "status": "in_progress",
         "target_date": "2025-12-31T00:00:00Z",
+        "user_id": "550e8400-e29b-41d4-a716-446655440000",
         "created_at": "2025-01-15T10:30:00Z"
       },
       {
@@ -41,12 +48,13 @@ async def read_goals(supabase: Client = Depends(get_supabase)):
         "description": null,
         "status": "pending",
         "target_date": null,
+        "user_id": "550e8400-e29b-41d4-a716-446655440000",
         "created_at": "2025-01-14T09:20:00Z"
       }
     ]
     ```
     """
-    goals = await Goal.get_all(supabase)
+    goals = await Goal.get_all(supabase, user_id)
     return goals
 
 
@@ -81,18 +89,24 @@ async def read_goals(supabase: Client = Depends(get_supabase)):
         }
     }
 )
-async def read_goal(goal_id: int, supabase: Client = Depends(get_supabase)):
+async def read_goal(
+    goal_id: int,
+    supabase: Client = Depends(get_supabase),
+    user_id: str = Depends(get_current_user_id)
+):
     """
-    Retrieve a single goal by its unique ID.
+    Retrieve a single goal by its unique ID for the authenticated user.
+
+    **Authentication Required:** Bearer token must be provided in Authorization header.
 
     **Path Parameters:**
     - **goal_id**: The unique identifier of the goal (integer)
 
     **Returns:**
-    - The goal object if found
-    - 404 error if the goal does not exist
+    - The goal object if found and belongs to the user
+    - 404 error if the goal does not exist or doesn't belong to the user
     """
-    goal = await Goal.get_by_id(supabase, goal_id)
+    goal = await Goal.get_by_id(supabase, goal_id, user_id)
     if goal is None:
         raise HTTPException(status_code=404, detail="Goal not found")
     return goal
@@ -138,9 +152,15 @@ async def read_goal(goal_id: int, supabase: Client = Depends(get_supabase)):
         }
     }
 )
-async def create_goal(goal_data: GoalCreate, supabase: Client = Depends(get_supabase)):
+async def create_goal(
+    goal_data: GoalCreate,
+    supabase: Client = Depends(get_supabase),
+    user_id: str = Depends(get_current_user_id)
+):
     """
-    Create a new goal in the database.
+    Create a new goal in the database for the authenticated user.
+
+    **Authentication Required:** Bearer token must be provided in Authorization header.
 
     **Request Body:**
     - **title** (required): Goal title (1-200 characters)
@@ -159,9 +179,9 @@ async def create_goal(goal_data: GoalCreate, supabase: Client = Depends(get_supa
     ```
 
     **Returns:**
-    - The created goal with auto-generated ID and created_at timestamp
+    - The created goal with auto-generated ID, user_id, and created_at timestamp
     """
-    return await goal_data.save(supabase)
+    return await goal_data.save(supabase, user_id)
 
 
 @router.put(
@@ -201,13 +221,16 @@ async def create_goal(goal_data: GoalCreate, supabase: Client = Depends(get_supa
 async def update_goal(
     goal_id: int,
     goal_data: GoalUpdate,
-    supabase: Client = Depends(get_supabase)
+    supabase: Client = Depends(get_supabase),
+    user_id: str = Depends(get_current_user_id)
 ):
     """
-    Update an existing goal.
+    Update an existing goal for the authenticated user.
 
     All fields in the request body are optional. Only provided fields will be updated.
     Fields not included in the request will retain their current values.
+
+    **Authentication Required:** Bearer token must be provided in Authorization header.
 
     **Path Parameters:**
     - **goal_id**: The unique identifier of the goal to update
@@ -227,13 +250,13 @@ async def update_goal(
 
     **Returns:**
     - The updated goal with all current values
-    - 404 error if the goal does not exist
+    - 404 error if the goal does not exist or doesn't belong to the user
     """
-    goal = await Goal.get_by_id(supabase, goal_id)
+    goal = await Goal.get_by_id(supabase, goal_id, user_id)
     if goal is None:
         raise HTTPException(status_code=404, detail="Goal not found")
 
-    updated_goal = await goal.update(supabase, goal_data)
+    updated_goal = await goal.update(supabase, goal_data, user_id)
     if updated_goal is None:
         raise HTTPException(status_code=500, detail="Failed to update goal")
 
@@ -259,22 +282,28 @@ async def update_goal(
         }
     }
 )
-async def delete_goal(goal_id: int, supabase: Client = Depends(get_supabase)):
+async def delete_goal(
+    goal_id: int,
+    supabase: Client = Depends(get_supabase),
+    user_id: str = Depends(get_current_user_id)
+):
     """
-    Delete a goal from the database.
+    Delete a goal from the database for the authenticated user.
 
     This operation is permanent and cannot be undone.
+
+    **Authentication Required:** Bearer token must be provided in Authorization header.
 
     **Path Parameters:**
     - **goal_id**: The unique identifier of the goal to delete
 
     **Returns:**
     - 204 No Content on successful deletion
-    - 404 error if the goal does not exist
+    - 404 error if the goal does not exist or doesn't belong to the user
     """
-    goal = await Goal.get_by_id(supabase, goal_id)
+    goal = await Goal.get_by_id(supabase, goal_id, user_id)
     if goal is None:
         raise HTTPException(status_code=404, detail="Goal not found")
 
-    await goal.delete(supabase)
+    await goal.delete(supabase, user_id)
     return None

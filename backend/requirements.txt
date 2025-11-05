@@ -5,3 +5,4 @@ pydantic-settings==2.1.0
 python-dotenv==1.0.0
 supabase==2.10.0
 postgrest==0.18.0
+PyJWT==2.8.0

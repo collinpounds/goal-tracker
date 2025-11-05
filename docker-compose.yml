@@ -5,12 +5,19 @@ services:
     build:
       context: .
       dockerfile: ./backend/Dockerfile
+      args:
+        # Pass VITE_ variables to frontend build
+        - VITE_API_URL=${VITE_API_URL}
+        - VITE_SUPABASE_URL=${VITE_SUPABASE_URL}
+        - VITE_SUPABASE_ANON_KEY=${VITE_SUPABASE_ANON_KEY}
     container_name: goal_tracker_backend
     env_file:
       - .env
     environment:
       SUPABASE_URL: ${SUPABASE_URL}
       SUPABASE_ANON_KEY: ${SUPABASE_ANON_KEY}
+      SUPABASE_JWT_SECRET: ${SUPABASE_JWT_SECRET}
+      SUPABASE_SERVICE_ROLE_KEY: ${SUPABASE_SERVICE_ROLE_KEY}
       PORT: ${PORT:-8000}
     ports:
       - "8000:8000"

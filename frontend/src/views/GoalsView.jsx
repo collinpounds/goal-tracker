@@ -1,5 +1,6 @@
 import React, { useEffect } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
+import { useNavigate } from 'react-router-dom';
 import {
   fetchGoals,
   createGoal,
@@ -8,13 +9,16 @@ import {
   setEditingGoal,
   setShowForm,
 } from '../models/goalSlice';
+import { logout, selectUser } from '../models/authSlice';
 import GoalCard from '../components/GoalCard';
 import GoalForm from '../components/GoalForm';
 import VersionDisplay from '../components/VersionDisplay';
 
 function GoalsView() {
   const dispatch = useDispatch();
+  const navigate = useNavigate();
   const { goals, loading, error, editingGoal, showForm } = useSelector((state) => state.goals);
+  const user = useSelector(selectUser);
 
   useEffect(() => {
     dispatch(fetchGoals());
@@ -51,12 +55,33 @@ function GoalsView() {
     dispatch(setShowForm(true));
   };
 
+  const handleLogout = async () => {
+    await dispatch(logout());
+    navigate('/login');
+  };
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100">
       <div className="container mx-auto px-4 py-8 max-w-6xl">
-        <header className="mb-8">
-          <h1 className="text-4xl font-bold text-gray-800 mb-2">Goal Tracker</h1>
-          <p className="text-gray-600">Track and manage your goals effectively</p>
+        <header className="mb-8 flex justify-between items-start">
+          <div>
+            <h1 className="text-4xl font-bold text-gray-800 mb-2">Goal Tracker</h1>
+            <p className="text-gray-600">Track and manage your goals effectively</p>
+          </div>
+          <div className="flex items-center gap-4">
+            {user && (
+              <div className="text-right">
+                <p className="text-sm text-gray-600">Logged in as</p>
+                <p className="font-medium text-gray-800">{user.email}</p>
+              </div>
+            )}
+            <button
+              onClick={handleLogout}
+              className="bg-red-500 text-white py-2 px-4 rounded-md hover:bg-red-600 transition-colors font-medium text-sm"
+            >
+              Logout
+            </button>
+          </div>
         </header>
 
         {error && (

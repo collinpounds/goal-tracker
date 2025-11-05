@@ -7,6 +7,7 @@ on:
     paths:
       - 'backend/**'
       - 'frontend/**'
+      - 'supabase/migrations/**'
       - 'Dockerfile.cloudrun'
       - 'cloudbuild.yaml'
       - '.github/workflows/deploy-cloudrun.yml'
@@ -49,6 +50,21 @@ jobs:
       - name: Configure Docker for GCR
         run: |
           gcloud auth configure-docker
+
+      - name: Run database migrations
+        env:
+          SUPABASE_ACCESS_TOKEN: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
+          SUPABASE_DB_PASSWORD: ${{ secrets.SUPABASE_DB_PASSWORD }}
+        run: |
+          # Install Supabase CLI
+          curl -sL https://github.com/supabase/cli/releases/latest/download/supabase_linux_amd64.tar.gz | tar xz
+          sudo mv supabase /usr/local/bin/
+
+          # Link to production project
+          supabase link --project-ref bnmdrvslwmuimlpkqqfq --password "$SUPABASE_DB_PASSWORD"
+
+          # Push migrations to production
+          supabase db push --include-all
 
       - name: Build and deploy with Cloud Build
         run: |

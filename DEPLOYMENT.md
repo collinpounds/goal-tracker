@@ -251,9 +251,55 @@ gcloud run services update-traffic goal-tracker \
   --region us-central1
 ```
 
-## Continuous Deployment
+## GitHub Actions Deployment (Recommended)
 
-For automated deployments, set up Cloud Build triggers:
+The repository is configured with GitHub Actions for automatic deployment on push to `main`.
+
+### Required GitHub Secrets
+
+Add these secrets to your GitHub repository (Settings → Secrets and variables → Actions):
+
+| Secret Name | Description | How to Get |
+|-------------|-------------|------------|
+| `GCP_SA_KEY` | Google Cloud Service Account JSON key | See [Creating Service Account](#creating-service-account) below |
+| `SUPABASE_ACCESS_TOKEN` | Supabase Personal Access Token | Dashboard → Account → Access Tokens → Generate new token |
+| `SUPABASE_DB_PASSWORD` | Supabase Database Password | Dashboard → Project Settings → Database → Password |
+
+### Creating Service Account
+
+1. Go to [Google Cloud Console → IAM & Admin → Service Accounts](https://console.cloud.google.com/iam-admin/serviceaccounts)
+2. Click **"CREATE SERVICE ACCOUNT"**
+3. Name: `github-actions-deployer`
+4. Grant roles:
+   - **Cloud Run Admin** (roles/run.admin)
+   - **Cloud Build Editor** (roles/cloudbuild.builds.editor)
+   - **Storage Admin** (roles/storage.admin)
+   - **Service Account User** (roles/iam.serviceAccountUser)
+5. Click **"CREATE KEY"** → JSON format
+6. Copy the entire JSON content and add it as `GCP_SA_KEY` secret in GitHub
+
+### How It Works
+
+On every push to `main` branch, the GitHub Action will:
+
+1. **Run Database Migrations**: Apply any new migrations to production Supabase
+2. **Build Docker Image**: Create production container with frontend and backend
+3. **Deploy to Cloud Run**: Update the running service
+4. **Health Check**: Verify deployment succeeded
+
+View the workflow: `.github/workflows/deploy-cloudrun.yml`
+
+### Manual Trigger
+
+You can also manually trigger a deployment:
+
+1. Go to GitHub repository → Actions tab
+2. Select "Deploy to Cloud Run" workflow
+3. Click "Run workflow"
+
+## Continuous Deployment (Alternative)
+
+For automated deployments using Cloud Build triggers:
 
 1. Connect your GitHub/GitLab repository
 2. Create a `cloudbuild.yaml`:
