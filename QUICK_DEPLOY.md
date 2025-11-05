@@ -95,9 +95,11 @@ If deployment fails, check logs:
 gcloud run services logs read goal-tracker --region us-central1
 ```
 
-## Files Created for Deployment
+## Deployment Files
 
 - `Dockerfile.cloudrun` - Multi-stage build for Cloud Run
 - `deploy-cloudrun.sh` - Automated deployment script
+- `cloudbuild.yaml` - Cloud Build configuration
+- `.github/workflows/deploy-cloudrun.yml` - GitHub Actions CI/CD
 - `DEPLOYMENT.md` - Comprehensive deployment guide
 - `QUICK_DEPLOY.md` - This file

@@ -19,18 +19,31 @@ Your local development environment includes:
 
 ## Quick Start
 
-### 1. Start Local Supabase
+### 1. Run the Application
 
+**Recommended: Use the convenience script**
 ```bash
-./start-local.sh
+./run-local.sh
 ```
 
 This will:
-- Start all Supabase services via Docker
-- Display connection URLs and credentials
-- Show you the next steps
+- Start local Supabase services (if not running)
+- Configure environment for local development
+- Start Docker containers for backend and frontend
 
-### 2. Install Backend Dependencies
+**Alternative: Manual steps**
+```bash
+# Start Supabase
+./bin/supabase start
+
+# Copy local environment config
+cp .env.local .env
+
+# Start Docker Compose
+docker-compose up --build
+```
+
+### 2. Install Backend Dependencies (Optional for direct Python development)
 
 ```bash
 cd backend

@@ -89,6 +89,12 @@ async def serve_frontend(full_path: str):
     if full_path.startswith("api/") or full_path.startswith("health"):
         return {"message": "Not found"}
 
+    # Serve static files from root (like version.json)
+    static_file = static_dir / full_path
+    if static_file.exists() and static_file.is_file():
+        return FileResponse(str(static_file))
+
+    # Otherwise, serve the SPA index.html
     index_file = static_dir / "index.html"
     if index_file.exists():
         return FileResponse(str(index_file))
