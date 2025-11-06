@@ -14,18 +14,18 @@ router = APIRouter()
 
 @router.get(
     "/goals",
-    response_model=List[Goal],
     summary="List all goals for authenticated user",
-    response_description="A list of user's goals ordered by creation date (newest first)",
+    response_description="A list of user's goals with team information ordered by creation date (newest first)",
 )
 async def read_goals(
     supabase: Client = Depends(get_supabase),
     user_id: str = Depends(get_current_user_id)
 ):
     """
-    Retrieve all goals for the authenticated user.
+    Retrieve all goals for the authenticated user with team information.
 
     Returns a list of the user's goals ordered by creation date in descending order (newest first).
+    Each goal includes a 'teams' array with team details.
     The list will be empty if the user has no goals.
 
     **Authentication Required:** Bearer token must be provided in Authorization header.
@@ -40,7 +40,10 @@ async def read_goals(
         "status": "in_progress",
         "target_date": "2025-12-31T00:00:00Z",
         "user_id": "550e8400-e29b-41d4-a716-446655440000",
-        "created_at": "2025-01-15T10:30:00Z"
+        "created_at": "2025-01-15T10:30:00Z",
+        "teams": [
+          {"id": 1, "name": "Backend Team", "color_theme": "#3B82F6"}
+        ]
       },
       {
         "id": 2,
@@ -49,7 +52,8 @@ async def read_goals(
         "status": "pending",
         "target_date": null,
         "user_id": "550e8400-e29b-41d4-a716-446655440000",
-        "created_at": "2025-01-14T09:20:00Z"
+        "created_at": "2025-01-14T09:20:00Z",
+        "teams": []
       }
     ]
     ```

@@ -93,6 +93,27 @@ jobs:
           curl -f ${{ steps.get-url.outputs.url }}/health || exit 1
           echo "Health check passed!"
 
+      - name: Run integration tests
+        env:
+          API_URL: ${{ steps.get-url.outputs.url }}
+        run: |
+          echo "======================================================================"
+          echo "RUNNING INTEGRATION TESTS"
+          echo "======================================================================"
+
+          # Install Python test dependencies
+          pip install pytest pytest-asyncio httpx
+
+          # Update test to use production URL
+          sed -i "s|http://localhost:8000|$API_URL|g" backend/tests/test_integration.py
+
+          # Run integration tests
+          python -m pytest backend/tests/test_integration.py -v -s --tb=short || true
+
+          echo "======================================================================"
+          echo "Integration tests completed (non-blocking)"
+          echo "======================================================================"
+
       - name: Deployment summary
         run: |
           VERSION=$(cat frontend/public/version.json | grep -o '"version":"[^"]*"' | cut -d'"' -f4)

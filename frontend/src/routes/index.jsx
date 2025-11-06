@@ -1,6 +1,8 @@
 import React from 'react';
 import { createBrowserRouter, RouterProvider } from 'react-router-dom';
+import Layout from '../components/Layout';
 import GoalsView from '../views/GoalsView';
+import TeamDetailsView from '../views/TeamDetailsView';
 import NotFoundView from '../views/NotFoundView';
 import LoginView from '../views/LoginView';
 import SignupView from '../views/SignupView';
@@ -19,18 +21,32 @@ const router = createBrowserRouter([
     path: '/',
     element: (
       <ProtectedRoute>
-        <GoalsView />
+        <Layout />
       </ProtectedRoute>
     ),
     errorElement: <NotFoundView />,
-  },
-  {
-    path: '/goals',
-    element: (
-      <ProtectedRoute>
-        <GoalsView />
-      </ProtectedRoute>
-    ),
+    children: [
+      {
+        index: true,
+        element: <GoalsView />,
+      },
+      {
+        path: 'goals',
+        element: <GoalsView />,
+      },
+      {
+        path: 'goals/private',
+        element: <GoalsView view="private" />,
+      },
+      {
+        path: 'goals/public',
+        element: <GoalsView view="public" />,
+      },
+      {
+        path: 'teams/:teamId',
+        element: <TeamDetailsView />,
+      },
+    ],
   },
   {
     path: '*',

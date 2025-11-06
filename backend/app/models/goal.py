@@ -15,6 +15,13 @@ class GoalStatus(str, Enum):
     COMPLETED = "completed"
 
 
+class GoalScope(str, Enum):
+    """Goal scope enumeration."""
+    PRIVATE = "private"
+    PUBLIC = "public"
+    TEAM = "team"
+
+
 class GoalBase(BaseModel):
     """Base goal schema with common attributes."""
     title: str = Field(
@@ -42,6 +49,10 @@ class GoalBase(BaseModel):
         False,
         description="Whether this goal is visible to other authenticated users"
     )
+    scope: GoalScope = Field(
+        GoalScope.PRIVATE,
+        description="Scope of the goal (private, public, or team)"
+    )
 
 
 class GoalCreate(GoalBase):
@@ -58,6 +69,11 @@ class GoalCreate(GoalBase):
         Returns:
             Created Goal instance
         """
+        # Determine scope based on is_public flag if scope not explicitly set
+        scope = self.scope
+        if self.is_public and scope == GoalScope.PRIVATE:
+            scope = GoalScope.PUBLIC
+
         goal_data = {
             "title": self.title,
             "description": self.description,
@@ -65,6 +81,7 @@ class GoalCreate(GoalBase):
             "target_date": self.target_date.isoformat() if self.target_date else None,
             "user_id": user_id,
             "is_public": self.is_public,
+            "scope": scope.value,
         }
 
         response = supabase.table("goals").insert(goal_data).execute()
@@ -101,6 +118,10 @@ class GoalUpdate(BaseModel):
         None,
         description="Whether this goal is visible to other authenticated users"
     )
+    scope: Optional[GoalScope] = Field(
+        None,
+        description="Scope of the goal (private, public, or team)"
+    )
 
 
 class Goal(GoalBase):
@@ -135,25 +156,43 @@ class Goal(GoalBase):
         }
 
     @classmethod
-    async def get_all(cls, supabase: Client, user_id: str) -> List["Goal"]:
+    async def get_all(cls, supabase: Client, user_id: str) -> List[dict]:
         """
-        Retrieve all goals for a specific user, ordered by created_at descending.
+        Retrieve all goals for a specific user with team information, ordered by created_at descending.
 
         Args:
             supabase: Supabase client instance
             user_id: UUID of the user whose goals to retrieve
 
         Returns:
-            List of Goal instances belonging to the user
+            List of Goal instances with team data belonging to the user
         """
+        # Get goals with team information
         response = (
             supabase.table("goals")
-            .select("*")
+            .select("*, goal_teams(team_id, teams(id, name, color_theme))")
             .eq("user_id", user_id)
             .order("created_at", desc=True)
             .execute()
         )
-        return [cls(**goal) for goal in response.data]
+
+        # Transform the data to include teams array
+        goals_with_teams = []
+        for goal_data in response.data:
+            # Extract teams from goal_teams relationship
+            teams = []
+            if "goal_teams" in goal_data and goal_data["goal_teams"]:
+                for gt in goal_data["goal_teams"]:
+                    if gt and "teams" in gt and gt["teams"]:
+                        teams.append(gt["teams"])
+
+            # Remove goal_teams from the goal data
+            goal_data_clean = {k: v for k, v in goal_data.items() if k != "goal_teams"}
+            goal_data_clean["teams"] = teams
+
+            goals_with_teams.append(goal_data_clean)
+
+        return goals_with_teams
 
     @classmethod
     async def get_all_public(cls, supabase: Client) -> List["Goal"]:
@@ -225,6 +264,8 @@ class Goal(GoalBase):
             update_dict["target_date"] = update_data.target_date.isoformat()
         if update_data.is_public is not None:
             update_dict["is_public"] = update_data.is_public
+        if update_data.scope is not None:
+            update_dict["scope"] = update_data.scope.value
 
         if not update_dict:
             # Nothing to update, return self
