@@ -6,18 +6,20 @@ import {
   fetchPublicGoals,
   createGoal,
   updateGoal,
-  deleteGoal,
-  setEditingGoal,
   setShowForm,
 } from '../models/goalSlice';
 import { fetchTeams, assignGoalToTeams } from '../models/teamSlice';
 import GoalCard from '../components/GoalCard';
 import GoalForm from '../components/GoalForm';
+import { useGoalHandlers } from '../hooks/useGoalHandlers';
 
 function GoalsView({ view = 'all' }) {
   const dispatch = useDispatch();
   const { goals, publicGoals, loading, error, editingGoal, showForm } = useSelector((state) => state.goals);
   const { teams } = useSelector((state) => state.teams);
+
+  // Use shared goal handlers hook
+  const { handleEdit, handleDelete, handleStatusChange } = useGoalHandlers();
 
   // Determine which goals to display based on view prop
   let displayGoals = [];
@@ -76,21 +78,6 @@ function GoalsView({ view = 'all' }) {
     }
   };
 
-  const handleDeleteGoal = (id) => {
-    if (!window.confirm('Are you sure you want to delete this goal?')) {
-      return;
-    }
-    dispatch(deleteGoal(id));
-  };
-
-  const handleStatusChange = (id, status) => {
-    dispatch(updateGoal({ id, goalData: { status } }));
-  };
-
-  const handleEdit = (goal) => {
-    dispatch(setEditingGoal(goal));
-  };
-
   const handleCancelEdit = () => {
     dispatch(setShowForm(false));
   };
@@ -123,20 +110,6 @@ function GoalsView({ view = 'all' }) {
       {error && (
         <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg mb-6">
           {error}
-        </div>
-      )}
-
-      {/* Goal Form Modal */}
-      {showForm && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
-            <GoalForm
-              goal={editingGoal}
-              onSubmit={editingGoal ? handleUpdateGoal : handleCreateGoal}
-              onCancel={handleCancelEdit}
-              teams={teams}
-            />
-          </div>
         </div>
       )}
 
@@ -188,7 +161,7 @@ function GoalsView({ view = 'all' }) {
               goal={goal}
               teams={getGoalTeams(goal)}
               onEdit={!isReadOnly ? handleEdit : null}
-              onDelete={!isReadOnly ? handleDeleteGoal : null}
+              onDelete={!isReadOnly ? handleDelete : null}
               onStatusChange={!isReadOnly ? handleStatusChange : null}
             />
           ))}

@@ -10,8 +10,10 @@ import {
   setEditingTeam,
   setShowInviteModal,
   deleteTeam,
+  removeMember,
 } from '../models/teamSlice';
 import GoalCard from '../components/GoalCard';
+import { useGoalHandlers } from '../hooks/useGoalHandlers';
 
 const TeamDetailsView = () => {
   const { teamId } = useParams();
@@ -27,6 +29,12 @@ const TeamDetailsView = () => {
   const members = teamMembers[teamId] || [];
   const goals = teamGoals[teamId] || [];
   const invitations = teamInvitations[teamId] || [];
+
+  // Use shared goal handlers with refresh callback
+  const { handleEdit, handleDelete, handleStatusChange } = useGoalHandlers(() => {
+    // Refresh team goals after any goal operation
+    dispatch(fetchTeamGoals(parseInt(teamId)));
+  });
 
   useEffect(() => {
     if (teamId) {
@@ -57,6 +65,19 @@ const TeamDetailsView = () => {
     if (window.confirm(`Are you sure you want to delete "${team.name}"? This action cannot be undone.`)) {
       await dispatch(deleteTeam(parseInt(teamId)));
       navigate('/goals');
+    }
+  };
+
+  const handleRemoveMember = async (memberUserId, memberName) => {
+    const confirmMessage = `Are you sure you want to remove ${memberName || 'this member'} from the team?`;
+    if (window.confirm(confirmMessage)) {
+      try {
+        await dispatch(removeMember({ teamId: parseInt(teamId), userId: memberUserId })).unwrap();
+        // Refresh team members
+        dispatch(fetchTeamMembers(parseInt(teamId)));
+      } catch (error) {
+        alert(`Failed to remove member: ${error}`);
+      }
     }
   };
 
@@ -197,7 +218,14 @@ const TeamDetailsView = () => {
               ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                   {goals.map((goal) => (
-                    <GoalCard key={goal.id} goal={goal} />
+                    <GoalCard
+                      key={goal.id}
+                      goal={goal}
+                      teams={goal.teams || []}
+                      onEdit={handleEdit}
+                      onDelete={handleDelete}
+                      onStatusChange={handleStatusChange}
+                    />
                   ))}
                 </div>
               )}
@@ -251,7 +279,10 @@ const TeamDetailsView = () => {
                           {isOwner && member.role !== 'owner' && (
                             <button
                               onClick={() => {
-                                /* TODO: Implement remove member */
+                                const memberName = member.first_name || member.last_name
+                                  ? `${member.first_name || ''} ${member.last_name || ''}`.trim()
+                                  : member.email || `User ${member.user_id.slice(0, 8)}`;
+                                handleRemoveMember(member.user_id, memberName);
                               }}
                               className="p-2 text-red-600 hover:bg-red-50 rounded transition-colors"
                               title="Remove member"

@@ -1,15 +1,50 @@
 import { Outlet } from 'react-router-dom';
-import { useDispatch } from 'react-redux';
+import { useDispatch, useSelector } from 'react-redux';
 import Sidebar from './Sidebar';
 import NotificationPanel from './NotificationPanel';
 import TeamFormModal from './TeamFormModal';
-import { setShowForm } from '../models/goalSlice';
+import GoalForm from './GoalForm';
+import { setShowForm, setEditingGoal, createGoal, updateGoal } from '../models/goalSlice';
+import { fetchTeams, assignGoalToTeams } from '../models/teamSlice';
+import { useEffect } from 'react';
 
 const Layout = () => {
   const dispatch = useDispatch();
+  const { showForm, editingGoal } = useSelector((state) => state.goals);
+  const { teams } = useSelector((state) => state.teams);
+
+  useEffect(() => {
+    dispatch(fetchTeams());
+  }, [dispatch]);
 
   const handleNewGoal = () => {
     dispatch(setShowForm(true));
+  };
+
+  const handleCreateGoal = async (goalData) => {
+    const { team_ids, ...goalDataWithoutTeams } = goalData;
+
+    const result = await dispatch(createGoal(goalDataWithoutTeams));
+
+    if (result.payload && team_ids && team_ids.length > 0) {
+      const goalId = result.payload.id;
+      await dispatch(assignGoalToTeams({ goalId, teamIds: team_ids }));
+    }
+  };
+
+  const handleUpdateGoal = async (goalData) => {
+    const { team_ids, ...goalDataWithoutTeams } = goalData;
+
+    const result = await dispatch(updateGoal({ id: editingGoal.id, goalData: goalDataWithoutTeams }));
+
+    if (result.payload && team_ids && team_ids.length > 0) {
+      await dispatch(assignGoalToTeams({ goalId: editingGoal.id, teamIds: team_ids }));
+    }
+  };
+
+  const handleCancelEdit = () => {
+    dispatch(setShowForm(false));
+    dispatch(setEditingGoal(null));
   };
 
   return (
@@ -48,6 +83,20 @@ const Layout = () => {
 
       {/* Modals */}
       <TeamFormModal />
+
+      {/* Goal Form Modal - Global */}
+      {showForm && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+            <GoalForm
+              goal={editingGoal}
+              onSubmit={editingGoal ? handleUpdateGoal : handleCreateGoal}
+              onCancel={handleCancelEdit}
+              teams={teams}
+            />
+          </div>
+        </div>
+      )}
     </div>
   );
 };
