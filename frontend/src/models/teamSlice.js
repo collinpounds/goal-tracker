@@ -163,12 +163,26 @@ export const unassignGoalFromTeam = createAsyncThunk(
 
 export const sendInvitation = createAsyncThunk(
   'teams/sendInvitation',
-  async ({ teamId, email }, { rejectWithValue }) => {
+  async ({ teamId, email }, { rejectWithValue, dispatch }) => {
     try {
       const data = await invitationService.sendInvitation(teamId, email);
-      return data;
+      // Refresh team invitations after sending
+      dispatch(fetchTeamInvitations(teamId));
+      return { teamId, invitation: data };
     } catch (error) {
       return rejectWithValue(error.response?.data?.detail || error.message || 'Failed to send invitation');
+    }
+  }
+);
+
+export const fetchTeamInvitations = createAsyncThunk(
+  'teams/fetchTeamInvitations',
+  async (teamId, { rejectWithValue }) => {
+    try {
+      const data = await invitationService.getTeamInvitations(teamId);
+      return { teamId, invitations: data };
+    } catch (error) {
+      return rejectWithValue(error.response?.data?.detail || error.message || 'Failed to fetch team invitations');
     }
   }
 );
@@ -233,6 +247,7 @@ const initialState = {
   teams: [], // All teams user is a member of
   teamMembers: {}, // Team members by team ID { teamId: [members] }
   teamGoals: {}, // Team goals by team ID { teamId: [goals] }
+  teamInvitations: {}, // Team invitations by team ID { teamId: [invitations] }
   pendingInvitations: [], // Pending invitations for current user
   selectedTeamId: null, // Currently selected team
   loading: false,
@@ -413,6 +428,18 @@ const teamSlice = createSlice({
         state.invitingTeamId = null;
       })
       .addCase(sendInvitation.rejected, (state, action) => {
+        state.error = action.payload;
+      })
+      .addCase(fetchTeamInvitations.pending, (state) => {
+        state.loading = true;
+      })
+      .addCase(fetchTeamInvitations.fulfilled, (state, action) => {
+        state.loading = false;
+        const { teamId, invitations } = action.payload;
+        state.teamInvitations[teamId] = invitations;
+      })
+      .addCase(fetchTeamInvitations.rejected, (state, action) => {
+        state.loading = false;
         state.error = action.payload;
       })
       .addCase(fetchPendingInvitations.fulfilled, (state, action) => {

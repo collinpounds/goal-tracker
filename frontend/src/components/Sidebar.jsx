@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { fetchTeams, toggleSidebar, setShowTeamForm } from '../models/teamSlice';
+import { logout } from '../models/authSlice';
 
 const Sidebar = () => {
   const dispatch = useDispatch();
@@ -9,7 +10,9 @@ const Sidebar = () => {
   const location = useLocation();
 
   const { teams, sidebarCollapsed } = useSelector((state) => state.teams);
+  const { user } = useSelector((state) => state.auth);
   const [expandedTeams, setExpandedTeams] = useState(new Set());
+  const [showUserMenu, setShowUserMenu] = useState(false);
 
   useEffect(() => {
     dispatch(fetchTeams());
@@ -21,6 +24,11 @@ const Sidebar = () => {
 
   const handleNavigate = (path) => {
     navigate(path);
+  };
+
+  const handleLogout = async () => {
+    await dispatch(logout());
+    navigate('/login');
   };
 
   const toggleTeamExpanded = (teamId) => {
@@ -257,6 +265,108 @@ const Sidebar = () => {
             <p className="text-xs text-gray-500 px-3 py-2">No teams yet</p>
           )}
           {topLevel.map(team => renderTeam(team))}
+        </div>
+      </div>
+
+      {/* User Menu at Bottom */}
+      <div className="border-t border-gray-200 p-3">
+        <div className="relative">
+          <button
+            onClick={() => setShowUserMenu(!showUserMenu)}
+            className={`w-full flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-gray-100 transition-colors ${
+              sidebarCollapsed ? 'justify-center' : ''
+            }`}
+            title={sidebarCollapsed ? user?.email : ''}
+          >
+            {/* Avatar */}
+            <div className="w-8 h-8 rounded-full bg-blue-600 flex items-center justify-center text-white font-medium flex-shrink-0">
+              {user?.email?.[0]?.toUpperCase() || 'U'}
+            </div>
+
+            {!sidebarCollapsed && (
+              <>
+                <div className="flex-1 text-left min-w-0">
+                  <p className="text-sm font-medium text-gray-900 truncate">{user?.email}</p>
+                  <p className="text-xs text-gray-500 truncate">View profile</p>
+                </div>
+
+                <svg
+                  className={`w-4 h-4 text-gray-600 transition-transform flex-shrink-0 ${
+                    showUserMenu ? 'rotate-180' : ''
+                  }`}
+                  fill="none"
+                  stroke="currentColor"
+                  viewBox="0 0 24 24"
+                >
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7 7" />
+                </svg>
+              </>
+            )}
+          </button>
+
+          {/* Dropdown Menu */}
+          {showUserMenu && (
+            <>
+              {/* Backdrop */}
+              <div className="fixed inset-0 z-10" onClick={() => setShowUserMenu(false)} />
+
+              {/* Menu */}
+              <div
+                className={`absolute bottom-full mb-2 bg-white rounded-lg shadow-lg border border-gray-200 py-2 z-20 ${
+                  sidebarCollapsed ? 'left-full ml-2 w-56' : 'left-0 right-0'
+                }`}
+              >
+                {/* User Info (only if collapsed) */}
+                {sidebarCollapsed && (
+                  <div className="px-4 py-3 border-b border-gray-200">
+                    <p className="text-sm font-medium text-gray-900">{user?.email}</p>
+                    <p className="text-xs text-gray-500 mt-1">User ID: {user?.id?.slice(0, 8)}...</p>
+                  </div>
+                )}
+
+                {/* Menu Items */}
+                <div className="py-1">
+                  {/* Profile Settings */}
+                  <button
+                    onClick={() => {
+                      setShowUserMenu(false);
+                      navigate('/profile');
+                    }}
+                    className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors flex items-center gap-2"
+                  >
+                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path
+                        strokeLinecap="round"
+                        strokeLinejoin="round"
+                        strokeWidth={2}
+                        d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
+                      />
+                    </svg>
+                    <span>Profile Settings</span>
+                  </button>
+                </div>
+
+                {/* Divider */}
+                <div className="border-t border-gray-200 my-1"></div>
+
+                {/* Logout Button */}
+                <button
+                  onClick={handleLogout}
+                  className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors flex items-center gap-2"
+                >
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={2}
+                      d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"
+                    />
+                  </svg>
+                  <span>Log Out</span>
+                </button>
+              </div>
+            </>
+          )}
         </div>
       </div>
     </div>

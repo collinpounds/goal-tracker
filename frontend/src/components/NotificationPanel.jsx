@@ -1,14 +1,17 @@
 import { useEffect } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
+import { useNavigate } from 'react-router-dom';
 import {
   fetchNotifications,
   togglePanel,
   markAsRead,
   markAllAsRead,
 } from '../models/notificationSlice';
+import { acceptInvitation, fetchPendingInvitations } from '../models/teamSlice';
 
 const NotificationPanel = () => {
   const dispatch = useDispatch();
+  const navigate = useNavigate();
   const { notifications, unreadCount, showPanel } = useSelector((state) => state.notifications);
 
   useEffect(() => {
@@ -33,6 +36,47 @@ const NotificationPanel = () => {
 
   const handleMarkAllAsRead = () => {
     dispatch(markAllAsRead());
+  };
+
+  const handleNotificationClick = async (notification) => {
+    // Mark as read if unread
+    if (!notification.read) {
+      dispatch(markAsRead(notification.id));
+    }
+
+    // Handle different notification types
+    switch (notification.type) {
+      case 'team_invitation':
+        // related_id is the invitation ID
+        if (notification.related_id) {
+          try {
+            // Accept the invitation
+            await dispatch(acceptInvitation(notification.related_id)).unwrap();
+            // Close the panel
+            dispatch(togglePanel());
+            // Show success message
+            alert('Team invitation accepted! You are now a member of the team.');
+            // Refresh notifications
+            dispatch(fetchNotifications());
+          } catch (error) {
+            alert(`Failed to accept invitation: ${error}`);
+          }
+        }
+        break;
+
+      case 'team_member_added':
+      case 'team_goal_assigned':
+        // related_id is the team ID
+        if (notification.related_id) {
+          dispatch(togglePanel());
+          navigate(`/teams/${notification.related_id}`);
+        }
+        break;
+
+      default:
+        // Just mark as read for other types
+        break;
+    }
   };
 
   const getNotificationIcon = (type) => {
@@ -169,7 +213,7 @@ const NotificationPanel = () => {
                   {notifications.map((notification) => (
                     <button
                       key={notification.id}
-                      onClick={() => !notification.read && handleMarkAsRead(notification.id)}
+                      onClick={() => handleNotificationClick(notification)}
                       className={`w-full text-left p-4 hover:bg-gray-50 transition-colors ${
                         !notification.read ? 'bg-blue-50' : ''
                       }`}
@@ -184,6 +228,11 @@ const NotificationPanel = () => {
                           <p className="text-xs text-gray-500 mt-2">
                             {formatTimeAgo(notification.created_at)}
                           </p>
+                          {notification.type === 'team_invitation' && (
+                            <p className="text-xs text-blue-600 font-medium mt-1">
+                              Click to accept invitation
+                            </p>
+                          )}
                         </div>
                         {!notification.read && (
                           <div className="flex-shrink-0">

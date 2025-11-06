@@ -34,8 +34,8 @@ export default function GoalCard({ goal, onEdit, onDelete, onStatusChange, teams
         </button>
       )}
 
-      <div className="flex justify-between items-start mb-3">
-        <div className="flex-1 pr-8">
+      <div className="flex justify-between items-start mb-3 pr-10">
+        <div className="flex-1 pr-4">
           <h3 className="text-xl font-semibold text-gray-800 mb-2">{goal.title}</h3>
 
           {/* Badges Row */}
@@ -56,7 +56,7 @@ export default function GoalCard({ goal, onEdit, onDelete, onStatusChange, teams
           </div>
         </div>
 
-        <span className={`px-3 py-1 rounded-full text-sm font-medium shadow-sm ${statusColors[goal.status]}`}>
+        <span className={`px-3 py-1 rounded-full text-sm font-medium shadow-sm whitespace-nowrap ${statusColors[goal.status]}`}>
           {statusLabels[goal.status]}
         </span>
       </div>

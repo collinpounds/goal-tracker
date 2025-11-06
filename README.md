@@ -88,13 +88,39 @@ goal_tracker/
 
 ## Features
 
-- **Goal Management**: Create, read, update, and delete goals
+### Goal Management
+- **CRUD Operations**: Create, read, update, and delete goals
 - **Status Tracking**: Track goal status (Pending, In Progress, Completed)
 - **Target Dates**: Set target completion dates
-- **Authentication**: Secure user authentication with Supabase Auth
-- **Authorization**: Role-based access control (RBAC) with admin and user roles
 - **Public/Private Goals**: Share goals publicly or keep them private
-- **Row Level Security**: Database-level security policies
+- **Team Assignment**: Assign goals to teams for collaborative tracking
+
+### Teams & Collaboration
+- **Team Creation**: Create hierarchical teams (up to 3 levels of nesting)
+- **Team Members**: Invite users via email or shareable invite links
+- **Role Management**: Owner and member roles with appropriate permissions
+- **Team Goals**: Assign and track goals within team context
+- **Nested Teams**: Organize teams hierarchically (parent-child relationships)
+
+### Notifications
+- **Real-time Notifications**: Get notified of team invitations, member additions, and goal assignments
+- **Notification Panel**: Interactive panel with unread count badge
+- **One-Click Actions**: Accept invitations directly from notifications
+- **Auto-polling**: Check for new notifications every 30 seconds
+
+### User Profile
+- **Profile Management**: Edit email, first name, last name, and phone number
+- **User Metadata**: Store additional user information in Supabase Auth
+- **Password Reset**: Change password via email verification
+- **User Avatar**: Display user initials in avatar throughout app
+
+### Security & Authentication
+- **Secure Authentication**: JWT-based auth with Supabase Auth
+- **Authorization**: Row Level Security (RLS) for database-level access control
+- **Email Verification**: Verify user emails during signup
+- **Role-based Access**: Owner and member roles for teams
+
+### Technical Features
 - **Responsive UI**: Modern, mobile-friendly interface with Tailwind CSS
 - **RESTful API**: FastAPI with automatic OpenAPI documentation
 - **Real-time Updates**: Redux state management for seamless UX
@@ -213,22 +239,52 @@ Frontend will be available at http://localhost:5173 (Vite dev server)
 ## API Endpoints
 
 ### Goals
-
-- `GET /api/goals` - Get all goals
+- `GET /api/goals` - Get all goals for current user
+- `GET /api/goals/private` - Get private goals only
+- `GET /api/goals/public` - Get public goals only
 - `GET /api/goals/{id}` - Get a specific goal
 - `POST /api/goals` - Create a new goal
 - `PUT /api/goals/{id}` - Update a goal
 - `DELETE /api/goals/{id}` - Delete a goal
 
-### Health Check
+### Teams
+- `GET /api/teams` - Get all teams for current user
+- `POST /api/teams` - Create a new team
+- `GET /api/teams/{id}` - Get team details
+- `PUT /api/teams/{id}` - Update team
+- `DELETE /api/teams/{id}` - Delete team
+- `GET /api/teams/{id}/members` - Get team members with user info
+- `POST /api/teams/{id}/members` - Add team member
+- `PUT /api/teams/{id}/members/{user_id}` - Update member role
+- `DELETE /api/teams/{id}/members/{user_id}` - Remove team member
+- `GET /api/teams/{id}/goals` - Get goals assigned to team
+- `POST /api/goals/{goal_id}/assign-teams` - Assign goal to teams
 
+### Invitations
+- `POST /api/teams/{id}/invite` - Send team invitation by email
+- `GET /api/teams/{id}/invitations` - Get all invitations for team
+- `GET /api/invitations` - Get pending invitations for current user
+- `POST /api/invitations/{id}/accept` - Accept team invitation
+- `POST /api/invitations/{id}/decline` - Decline team invitation
+- `GET /api/invite/{code}` - Get invitation by shareable code
+- `POST /api/invite/{code}/join` - Join team via invite link
+
+### Notifications
+- `GET /api/notifications` - Get notifications for current user
+- `PUT /api/notifications/{id}/read` - Mark notification as read
+- `PUT /api/notifications/read-all` - Mark all notifications as read
+
+### Authentication & Profile
+- Login/Signup handled by Supabase Auth client-side
+- JWT token passed in Authorization header for API requests
+
+### Health Check
 - `GET /health` - Health check endpoint
 - `GET /` - API root
 
 ## Database Schema
 
 ### Goals Table
-
 | Column | Type | Description |
 |--------|------|-------------|
 | id | Integer | Primary key (auto-increment) |
@@ -240,13 +296,67 @@ Frontend will be available at http://localhost:5173 (Vite dev server)
 | user_id | UUID | Foreign key to auth.users |
 | created_at | Timestamp | Creation timestamp (auto) |
 
-### User Roles
+### Teams Table
+| Column | Type | Description |
+|--------|------|-------------|
+| id | Integer | Primary key |
+| name | String(100) | Team name (required) |
+| description | Text | Team description (optional) |
+| color_theme | String(7) | Hex color code for UI |
+| parent_team_id | Integer | Parent team (nullable, for nesting) |
+| nesting_level | Integer | 0-2 (max 3 levels) |
+| created_by | UUID | Team creator |
+| created_at | Timestamp | Creation timestamp |
 
+### Team Members Table
+| Column | Type | Description |
+|--------|------|-------------|
+| id | Integer | Primary key |
+| team_id | Integer | Foreign key to teams |
+| user_id | UUID | Foreign key to auth.users |
+| role | Enum | owner, member |
+| invited_by | UUID | User who invited |
+| joined_at | Timestamp | Join timestamp |
+
+### Team Invitations Table
+| Column | Type | Description |
+|--------|------|-------------|
+| id | Integer | Primary key |
+| team_id | Integer | Foreign key to teams |
+| email | String(255) | Invitee email |
+| status | Enum | pending, accepted, declined, expired |
+| invite_code | String(32) | Unique shareable code |
+| invited_by | UUID | User who sent invite |
+| expires_at | Timestamp | Expiration timestamp |
+| created_at | Timestamp | Creation timestamp |
+
+### Goal Team Assignments Table
+| Column | Type | Description |
+|--------|------|-------------|
+| id | Integer | Primary key |
+| goal_id | Integer | Foreign key to goals |
+| team_id | Integer | Foreign key to teams |
+| assigned_by | UUID | User who assigned |
+| assigned_at | Timestamp | Assignment timestamp |
+
+### Notifications Table
+| Column | Type | Description |
+|--------|------|-------------|
+| id | Integer | Primary key |
+| user_id | UUID | Foreign key to auth.users |
+| type | Enum | team_invitation, team_member_added, team_goal_assigned |
+| title | String(255) | Notification title |
+| message | Text | Notification message |
+| read | Boolean | Read status (default: false) |
+| related_id | Integer | Related entity ID |
+| created_at | Timestamp | Creation timestamp |
+
+### User Roles
 Managed in `public.user_roles` table:
 - **admin**: Full access to all goals
 - **user**: Access to own goals only
 
-Row Level Security (RLS) policies enforce authorization at the database level.
+Row Level Security (RLS) policies enforce authorization at the database level for all tables.
 
 ## Deployment to Cloud Run
 

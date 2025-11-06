@@ -5,6 +5,8 @@ import {
   fetchTeam,
   fetchTeamMembers,
   fetchTeamGoals,
+  fetchTeamInvitations,
+  sendInvitation,
   setEditingTeam,
   setShowInviteModal,
   deleteTeam,
@@ -16,7 +18,7 @@ const TeamDetailsView = () => {
   const navigate = useNavigate();
   const dispatch = useDispatch();
 
-  const { teams, teamMembers, teamGoals, loading } = useSelector((state) => state.teams);
+  const { teams, teamMembers, teamGoals, teamInvitations, loading } = useSelector((state) => state.teams);
   const { user } = useSelector((state) => state.auth);
 
   const [activeTab, setActiveTab] = useState('goals');
@@ -24,12 +26,14 @@ const TeamDetailsView = () => {
   const team = teams.find((t) => t.id === parseInt(teamId));
   const members = teamMembers[teamId] || [];
   const goals = teamGoals[teamId] || [];
+  const invitations = teamInvitations[teamId] || [];
 
   useEffect(() => {
     if (teamId) {
       dispatch(fetchTeam(parseInt(teamId)));
       dispatch(fetchTeamMembers(parseInt(teamId)));
       dispatch(fetchTeamGoals(parseInt(teamId)));
+      dispatch(fetchTeamInvitations(parseInt(teamId)));
     }
   }, [dispatch, teamId]);
 
@@ -37,12 +41,15 @@ const TeamDetailsView = () => {
     dispatch(setEditingTeam(team));
   };
 
-  const handleInviteMembers = () => {
+  const handleInviteMembers = async () => {
     const email = prompt('Enter the email address to invite:');
     if (email) {
-      dispatch(setShowInviteModal({ show: true, teamId: parseInt(teamId), email }));
-      // TODO: Implement actual invitation sending logic
-      alert(`Invitation will be sent to ${email}`);
+      try {
+        await dispatch(sendInvitation({ teamId: parseInt(teamId), email })).unwrap();
+        alert(`Invitation sent to ${email}`);
+      } catch (error) {
+        alert(`Failed to send invitation: ${error}`);
+      }
     }
   };
 
@@ -198,74 +205,136 @@ const TeamDetailsView = () => {
           )}
 
           {activeTab === 'members' && (
-            <div>
-              {members.length === 0 ? (
-                <div className="text-center py-12">
-                  <p className="text-gray-600">No members found.</p>
-                </div>
-              ) : (
-                <div className="space-y-3">
-                  {members.map((member) => (
-                    <div
-                      key={member.id}
-                      className="flex items-center justify-between p-4 bg-gray-50 rounded-lg"
-                    >
-                      <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center">
-                          <svg
-                            className="w-6 h-6 text-blue-600"
-                            fill="none"
-                            stroke="currentColor"
-                            viewBox="0 0 24 24"
-                          >
-                            <path
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              strokeWidth={2}
-                              d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"
-                            />
-                          </svg>
+            <div className="space-y-8">
+              {/* Active Members Section */}
+              <div>
+                <h3 className="text-lg font-semibold text-gray-900 mb-4">Active Members</h3>
+                {members.length === 0 ? (
+                  <div className="text-center py-12">
+                    <p className="text-gray-600">No members found.</p>
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    {members.map((member) => (
+                      <div
+                        key={member.id}
+                        className="flex items-center justify-between p-4 bg-gray-50 rounded-lg"
+                      >
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 font-medium text-lg">
+                            {member.email ? member.email[0].toUpperCase() : 'U'}
+                          </div>
+                          <div>
+                            <p className="font-medium text-gray-900">
+                              {member.first_name || member.last_name
+                                ? `${member.first_name || ''} ${member.last_name || ''}`.trim()
+                                : member.email || `User ${member.user_id.slice(0, 8)}`}
+                            </p>
+                            <p className="text-sm text-gray-600">{member.email}</p>
+                            <p className="text-xs text-gray-500">
+                              Joined {new Date(member.joined_at).toLocaleDateString()}
+                            </p>
+                          </div>
                         </div>
-                        <div>
-                          <p className="font-medium text-gray-900">User ID: {member.user_id.slice(0, 8)}...</p>
-                          <p className="text-sm text-gray-600">
-                            Joined {new Date(member.joined_at).toLocaleDateString()}
-                          </p>
+
+                        <div className="flex items-center gap-3">
+                          <span
+                            className={`px-3 py-1 rounded-full text-sm font-medium ${
+                              member.role === 'owner'
+                                ? 'bg-purple-100 text-purple-700'
+                                : 'bg-gray-200 text-gray-700'
+                            }`}
+                          >
+                            {member.role === 'owner' ? 'Owner' : 'Member'}
+                          </span>
+
+                          {isOwner && member.role !== 'owner' && (
+                            <button
+                              onClick={() => {
+                                /* TODO: Implement remove member */
+                              }}
+                              className="p-2 text-red-600 hover:bg-red-50 rounded transition-colors"
+                              title="Remove member"
+                            >
+                              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                  strokeWidth={2}
+                                  d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                                />
+                              </svg>
+                            </button>
+                          )}
                         </div>
                       </div>
+                    ))}
+                  </div>
+                )}
+              </div>
 
-                      <div className="flex items-center gap-3">
-                        <span
-                          className={`px-3 py-1 rounded-full text-sm font-medium ${
-                            member.role === 'owner'
-                              ? 'bg-purple-100 text-purple-700'
-                              : 'bg-gray-200 text-gray-700'
-                          }`}
-                        >
-                          {member.role === 'owner' ? 'Owner' : 'Member'}
-                        </span>
-
-                        {isOwner && member.role !== 'owner' && (
-                          <button
-                            onClick={() => {
-                              /* TODO: Implement remove member */
-                            }}
-                            className="p-2 text-red-600 hover:bg-red-50 rounded transition-colors"
-                            title="Remove member"
-                          >
-                            <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              {/* Pending Invitations Section */}
+              {invitations.length > 0 && (
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-900 mb-4">Pending Invitations</h3>
+                  <div className="space-y-3">
+                    {invitations.filter((inv) => inv.status === 'pending').map((invitation) => (
+                      <div
+                        key={invitation.id}
+                        className="flex items-center justify-between p-4 bg-yellow-50 border border-yellow-200 rounded-lg"
+                      >
+                        <div className="flex items-center gap-3">
+                          <div className="w-10 h-10 rounded-full bg-yellow-100 flex items-center justify-center">
+                            <svg
+                              className="w-6 h-6 text-yellow-600"
+                              fill="none"
+                              stroke="currentColor"
+                              viewBox="0 0 24 24"
+                            >
                               <path
                                 strokeLinecap="round"
                                 strokeLinejoin="round"
                                 strokeWidth={2}
-                                d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                                d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"
                               />
                             </svg>
-                          </button>
-                        )}
+                          </div>
+                          <div>
+                            <p className="font-medium text-gray-900">{invitation.email}</p>
+                            <p className="text-sm text-gray-600">
+                              Invited {new Date(invitation.created_at).toLocaleDateString()} • Expires {new Date(invitation.expires_at).toLocaleDateString()}
+                            </p>
+                          </div>
+                        </div>
+
+                        <div className="flex items-center gap-3">
+                          <span className="px-3 py-1 rounded-full text-sm font-medium bg-yellow-100 text-yellow-700">
+                            Pending
+                          </span>
+                          {isOwner && (
+                            <button
+                              onClick={() => {
+                                const inviteLink = `${window.location.origin}/invite/${invitation.invite_code}`;
+                                navigator.clipboard.writeText(inviteLink);
+                                alert('Invite link copied to clipboard!');
+                              }}
+                              className="p-2 text-blue-600 hover:bg-blue-50 rounded transition-colors"
+                              title="Copy invite link"
+                            >
+                              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                  strokeWidth={2}
+                                  d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"
+                                />
+                              </svg>
+                            </button>
+                          )}
+                        </div>
                       </div>
-                    </div>
-                  ))}
+                    ))}
+                  </div>
                 </div>
               )}
             </div>

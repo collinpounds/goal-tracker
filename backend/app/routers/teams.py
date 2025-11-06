@@ -10,7 +10,7 @@ import string
 
 from ..models.team import (
     Team, TeamCreate, TeamUpdate,
-    TeamMember, TeamMemberCreate, TeamMemberUpdate,
+    TeamMember, TeamMemberCreate, TeamMemberUpdate, TeamMemberWithUser,
     TeamInvitation, TeamInvitationCreate,
     Notification, NotificationCreate,
     GoalTeamAssignment,
@@ -18,7 +18,7 @@ from ..models.team import (
 )
 from ..models.goal import Goal
 from ..supabase_client import get_supabase
-from ..auth import get_current_user_id
+from ..auth import get_current_user_id, get_current_user_email
 
 router = APIRouter()
 
@@ -203,9 +203,9 @@ async def delete_team(
 
 @router.get(
     "/teams/{team_id}/members",
-    response_model=List[TeamMember],
+    response_model=List[TeamMemberWithUser],
     summary="List team members",
-    response_description="A list of team members"
+    response_description="A list of team members with user information"
 )
 async def read_team_members(
     team_id: int,
@@ -213,7 +213,7 @@ async def read_team_members(
     user_id: str = Depends(get_current_user_id)
 ):
     """
-    Retrieve all members of a specific team.
+    Retrieve all members of a specific team with their user information.
 
     User must be a member of the team to view its members.
     """
@@ -225,8 +225,35 @@ async def read_team_members(
             detail="Team not found or you are not a member"
         )
 
+    # Get team members
     members = await TeamMember.get_all_for_team(supabase, team_id)
-    return members
+
+    # Fetch user information for each member from auth.users
+    members_with_user = []
+    for member in members:
+        # Query auth.users table for user information
+        user_response = supabase.auth.admin.get_user_by_id(member.user_id)
+
+        # Extract user metadata
+        email = None
+        first_name = None
+        last_name = None
+
+        if user_response and user_response.user:
+            email = user_response.user.email
+            user_metadata = user_response.user.user_metadata or {}
+            first_name = user_metadata.get('first_name')
+            last_name = user_metadata.get('last_name')
+
+        # Create TeamMemberWithUser instance
+        member_dict = member.model_dump()
+        member_dict['email'] = email
+        member_dict['first_name'] = first_name
+        member_dict['last_name'] = last_name
+
+        members_with_user.append(TeamMemberWithUser(**member_dict))
+
+    return members_with_user
 
 
 @router.post(
@@ -477,6 +504,42 @@ async def send_team_invitation(
 
 
 @router.get(
+    "/teams/{team_id}/invitations",
+    response_model=List[TeamInvitation],
+    summary="Get all invitations for a team",
+    response_description="A list of invitations sent for this team"
+)
+async def read_team_invitations(
+    team_id: int,
+    supabase: Client = Depends(get_supabase),
+    user_id: str = Depends(get_current_user_id)
+):
+    """
+    Retrieve all invitations sent for a specific team.
+
+    User must be a member of the team to view its invitations.
+    """
+    # Verify user is a member of the team
+    team = await Team.get_by_id(supabase, team_id, user_id)
+    if not team:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Team not found or you are not a member"
+        )
+
+    # Get all invitations for this team
+    response = (
+        supabase.table("team_invitations")
+        .select("*")
+        .eq("team_id", team_id)
+        .order("created_at", desc=True)
+        .execute()
+    )
+
+    return [TeamInvitation(**invitation) for invitation in response.data]
+
+
+@router.get(
     "/invitations",
     response_model=List[TeamInvitation],
     summary="Get user's pending invitations",
@@ -509,69 +572,78 @@ async def read_invitations(
 async def accept_invitation(
     invitation_id: int,
     supabase: Client = Depends(get_supabase),
-    user_id: str = Depends(get_current_user_id)
+    user_id: str = Depends(get_current_user_id),
+    user_email: str = Depends(get_current_user_email)
 ):
     """
     Accept a team invitation and join the team.
 
     The invitation must be pending and sent to the user's email.
     """
-    # Get user's email
-    user_response = supabase.auth.get_user()
-    user_email = user_response.user.email if user_response.user else None
-
-    if not user_email:
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Could not verify user email"
-        )
-
-    # Find the invitation
-    invitation_response = (
-        supabase.table("team_invitations")
-        .select("*")
-        .eq("id", invitation_id)
-        .eq("email", user_email)
-        .eq("status", InvitationStatus.PENDING.value)
-        .execute()
-    )
-
-    if not invitation_response.data or len(invitation_response.data) == 0:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="Invitation not found or already processed"
-        )
-
-    invitation = TeamInvitation(**invitation_response.data[0])
-
-    # Check if invitation is expired
-    from datetime import datetime, timezone
-    if invitation.expires_at < datetime.now(timezone.utc):
-        await invitation.decline(supabase)  # Mark as expired
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Invitation has expired"
-        )
-
-    # Add user as team member
-    member_data = TeamMemberCreate(
-        team_id=invitation.team_id,
-        user_id=user_id,
-        role=TeamRole.MEMBER
-    )
-
     try:
-        member = await member_data.save(supabase, invitation.invited_by)
-        await invitation.accept(supabase)
-        return member
-    except Exception as e:
-        if "unique_team_membership" in str(e):
-            # User is already a member, mark invitation as accepted anyway
-            await invitation.accept(supabase)
+
+        # Find the invitation - check both by email match AND if user can access it
+        invitation_response = (
+            supabase.table("team_invitations")
+            .select("*")
+            .eq("id", invitation_id)
+            .eq("status", InvitationStatus.PENDING.value)
+            .execute()
+        )
+
+        if not invitation_response.data or len(invitation_response.data) == 0:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Invitation not found or already processed"
+            )
+
+        invitation = TeamInvitation(**invitation_response.data[0])
+
+        # Verify the invitation is for this user's email
+        if invitation.email.lower() != user_email.lower():
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail=f"This invitation is for {invitation.email}, but you are logged in as {user_email}"
+            )
+
+        # Check if invitation is expired
+        from datetime import datetime, timezone
+        if invitation.expires_at < datetime.now(timezone.utc):
+            await invitation.decline(supabase)  # Mark as expired
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
-                detail="You are already a member of this team"
+                detail="Invitation has expired"
             )
+
+        # Add user as team member
+        member_data = TeamMemberCreate(
+            team_id=invitation.team_id,
+            user_id=user_id,
+            role=TeamRole.MEMBER
+        )
+
+        try:
+            member = await member_data.save(supabase, invitation.invited_by)
+            await invitation.accept(supabase)
+            return member
+        except Exception as e:
+            if "unique_team_membership" in str(e):
+                # User is already a member, mark invitation as accepted anyway
+                await invitation.accept(supabase)
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail="You are already a member of this team"
+                )
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail=f"Failed to add you to the team: {str(e)}"
+            )
+    except HTTPException:
+        raise
+    except Exception as e:
+        import traceback
+        print(f"Error accepting invitation: {str(e)}")
+        print(traceback.format_exc())
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
             detail=f"Failed to accept invitation: {str(e)}"

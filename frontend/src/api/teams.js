@@ -144,6 +144,12 @@ export const invitationService = {
     return response.data;
   },
 
+  // Get all invitations for a team
+  async getTeamInvitations(teamId) {
+    const response = await api.get(`/api/teams/${teamId}/invitations`);
+    return response.data;
+  },
+
   // Get pending invitations for current user
   async getPendingInvitations() {
     const response = await api.get('/api/invitations');

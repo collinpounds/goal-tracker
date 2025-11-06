@@ -438,7 +438,7 @@ class TeamMember(TeamMemberBase):
             return TeamMember(**response.data[0])
         return None
 
-    async def remove(self, supabase: Client) -> bool:
+    async def delete(self, supabase: Client) -> bool:
         """
         Remove this member from the team.
 
@@ -446,15 +446,32 @@ class TeamMember(TeamMemberBase):
             supabase: Supabase client instance
 
         Returns:
-            True if successful, False otherwise
+            True if successful
         """
-        response = (
-            supabase.table("team_members")
-            .delete()
-            .eq("id", self.id)
-            .execute()
-        )
+        supabase.table("team_members").delete().eq("id", self.id).execute()
         return True
+
+
+class TeamMemberWithUser(TeamMember):
+    """Team member schema with user information."""
+    email: Optional[str] = Field(
+        None,
+        description="User's email address",
+        examples=["user@example.com"]
+    )
+    first_name: Optional[str] = Field(
+        None,
+        description="User's first name",
+        examples=["John"]
+    )
+    last_name: Optional[str] = Field(
+        None,
+        description="User's last name",
+        examples=["Doe"]
+    )
+
+    class Config:
+        from_attributes = True
 
 
 # =====================================================

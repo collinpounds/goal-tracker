@@ -3,6 +3,7 @@ import { createBrowserRouter, RouterProvider } from 'react-router-dom';
 import Layout from '../components/Layout';
 import GoalsView from '../views/GoalsView';
 import TeamDetailsView from '../views/TeamDetailsView';
+import ProfileView from '../views/ProfileView';
 import NotFoundView from '../views/NotFoundView';
 import LoginView from '../views/LoginView';
 import SignupView from '../views/SignupView';
@@ -45,6 +46,10 @@ const router = createBrowserRouter([
       {
         path: 'teams/:teamId',
         element: <TeamDetailsView />,
+      },
+      {
+        path: 'profile',
+        element: <ProfileView />,
       },
     ],
   },

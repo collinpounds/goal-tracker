@@ -103,6 +103,26 @@ def get_current_user_id(current_user: Dict = Depends(get_current_user)) -> str:
     return current_user["sub"]
 
 
+def get_current_user_email(current_user: Dict = Depends(get_current_user)) -> str:
+    """
+    FastAPI dependency to extract the user's email.
+
+    Usage:
+        @app.post("/invitations/{id}/accept")
+        async def accept_invitation(
+            user_email: str = Depends(get_current_user_email)
+        ):
+            return {"email": user_email}
+
+    Args:
+        current_user: The current user dict from get_current_user
+
+    Returns:
+        str: The user's email address
+    """
+    return current_user["email"]
+
+
 def get_user_role(current_user: Dict = Depends(get_current_user)) -> Optional[str]:
     """
     Extract the user's role from JWT token metadata.
