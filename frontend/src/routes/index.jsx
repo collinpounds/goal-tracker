@@ -3,10 +3,12 @@ import { createBrowserRouter, RouterProvider } from 'react-router-dom';
 import Layout from '../components/Layout';
 import GoalsView from '../views/GoalsView';
 import TeamDetailsView from '../views/TeamDetailsView';
+import CategoryView from '../views/CategoryView';
 import ProfileView from '../views/ProfileView';
 import NotFoundView from '../views/NotFoundView';
 import LoginView from '../views/LoginView';
 import SignupView from '../views/SignupView';
+import InviteView from '../views/InviteView';
 import ProtectedRoute from '../components/ProtectedRoute';
 
 const router = createBrowserRouter([
@@ -17,6 +19,10 @@ const router = createBrowserRouter([
   {
     path: '/signup',
     element: <SignupView />,
+  },
+  {
+    path: '/invite/:inviteCode',
+    element: <InviteView />,
   },
   {
     path: '/',
@@ -46,6 +52,10 @@ const router = createBrowserRouter([
       {
         path: 'teams/:teamId',
         element: <TeamDetailsView />,
+      },
+      {
+        path: 'categories/:categoryId',
+        element: <CategoryView />,
       },
       {
         path: 'profile',

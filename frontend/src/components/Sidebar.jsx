@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { fetchTeams, toggleSidebar, setShowTeamForm } from '../models/teamSlice';
+import { fetchCategories, setShowCategoryForm } from '../models/categorySlice';
 import { logout } from '../models/authSlice';
 
 const Sidebar = () => {
@@ -10,12 +11,14 @@ const Sidebar = () => {
   const location = useLocation();
 
   const { teams, sidebarCollapsed } = useSelector((state) => state.teams);
+  const { categories } = useSelector((state) => state.categories);
   const { user } = useSelector((state) => state.auth);
   const [expandedTeams, setExpandedTeams] = useState(new Set());
   const [showUserMenu, setShowUserMenu] = useState(false);
 
   useEffect(() => {
     dispatch(fetchTeams());
+    dispatch(fetchCategories());
   }, [dispatch]);
 
   const handleToggleSidebar = () => {
@@ -220,6 +223,79 @@ const Sidebar = () => {
           </svg>
           {!sidebarCollapsed && <span>Public</span>}
         </button>
+
+        {/* Divider */}
+        <div className="my-4 border-t border-gray-200" />
+
+        {/* Categories Section Header */}
+        {!sidebarCollapsed && (
+          <div className="flex items-center justify-between px-3 py-2">
+            <h3 className="text-xs font-semibold text-gray-500 uppercase tracking-wider">
+              Categories
+            </h3>
+            <button
+              onClick={() => dispatch(setShowCategoryForm(true))}
+              className="p-1 hover:bg-gray-200 rounded transition-colors"
+              title="Create new category"
+            >
+              <svg className="w-4 h-4 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+              </svg>
+            </button>
+          </div>
+        )}
+
+        {sidebarCollapsed && (
+          <button
+            onClick={() => dispatch(setShowCategoryForm(true))}
+            className="w-full flex items-center justify-center p-2 hover:bg-gray-100 rounded-lg transition-colors"
+            title="Create new category"
+          >
+            <svg className="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M7 7h.01M7 3h5c.512 0 1.024.195 1.414.586l7 7a2 2 0 010 2.828l-7 7a2 2 0 01-2.828 0l-7-7A1.994 1.994 0 013 12V7a4 4 0 014-4z"
+              />
+            </svg>
+          </button>
+        )}
+
+        {/* Categories List */}
+        <div className="space-y-1 mt-2">
+          {categories.length === 0 && !sidebarCollapsed && (
+            <p className="text-xs text-gray-500 px-3 py-2">No categories yet</p>
+          )}
+          {categories.map((category) => {
+            const isCategoryActive = isActive(`/categories/${category.id}`);
+            return (
+              <button
+                key={category.id}
+                onClick={() => handleNavigate(`/categories/${category.id}`)}
+                className={`w-full flex items-center gap-2 px-3 py-2 text-sm rounded-lg transition-colors ${
+                  isCategoryActive
+                    ? 'bg-blue-50 text-blue-700 font-medium'
+                    : 'text-gray-700 hover:bg-gray-100'
+                }`}
+                title={sidebarCollapsed ? category.name : ''}
+              >
+                {/* Category color indicator */}
+                <div
+                  className="w-3 h-3 rounded-full flex-shrink-0"
+                  style={{ backgroundColor: category.color }}
+                />
+
+                {!sidebarCollapsed && (
+                  <>
+                    {category.icon && <span className="text-sm">{category.icon}</span>}
+                    <span className="flex-1 text-left truncate">{category.name}</span>
+                  </>
+                )}
+              </button>
+            );
+          })}
+        </div>
 
         {/* Divider */}
         <div className="my-4 border-t border-gray-200" />

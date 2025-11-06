@@ -1,5 +1,6 @@
 import React from 'react';
 import TeamTag from './TeamTag';
+import CategoryTag from './CategoryTag';
 
 const statusColors = {
   pending: 'bg-gradient-to-r from-gray-100 to-gray-200 text-gray-800 border border-gray-300',
@@ -13,7 +14,7 @@ const statusLabels = {
   completed: 'Completed',
 };
 
-export default function GoalCard({ goal, onEdit, onDelete, onStatusChange, teams = [] }) {
+export default function GoalCard({ goal, onEdit, onDelete, onStatusChange, teams = [], categories = [] }) {
   const formatDate = (dateString) => {
     if (!dateString) return 'No target date';
     return new Date(dateString).toLocaleDateString();
@@ -34,31 +35,30 @@ export default function GoalCard({ goal, onEdit, onDelete, onStatusChange, teams
         </button>
       )}
 
-      <div className="flex justify-between items-start mb-3 pr-10">
-        <div className="flex-1 pr-4">
-          <h3 className="text-xl font-semibold text-gray-800 mb-2">{goal.title}</h3>
-
-          {/* Badges Row */}
-          <div className="flex items-center gap-2 flex-wrap">
-            {goal.is_public && (
-              <span className="inline-flex items-center gap-1 px-2 py-1 bg-blue-50 text-blue-600 rounded-full text-xs font-medium border border-blue-200">
-                <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-                </svg>
-                Public
-              </span>
-            )}
-
-            {/* Team Badges */}
-            {teams && teams.length > 0 && teams.map((team) => (
-              <TeamTag key={team.id} team={team} size="md" />
-            ))}
-          </div>
+      <div className="mb-3 pr-10">
+        <div className="flex justify-between items-start mb-2">
+          <h3 className="text-xl font-semibold text-gray-800 flex-1 pr-4">{goal.title}</h3>
+          <span className={`px-3 py-1 rounded-full text-sm font-medium shadow-sm whitespace-nowrap ${statusColors[goal.status]}`}>
+            {statusLabels[goal.status]}
+          </span>
         </div>
 
-        <span className={`px-3 py-1 rounded-full text-sm font-medium shadow-sm whitespace-nowrap ${statusColors[goal.status]}`}>
-          {statusLabels[goal.status]}
-        </span>
+        {/* Badges Row - Team badges and Public badge only */}
+        <div className="flex items-center gap-2 flex-wrap">
+          {goal.is_public && (
+            <span className="inline-flex items-center gap-1 px-2 py-1 bg-blue-50 text-blue-600 rounded-full text-xs font-medium border border-blue-200">
+              <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3.055 11H5a2 2 0 012 2v1a2 2 0 002 2 2 2 0 012 2v2.945M8 3.935V5.5A2.5 2.5 0 0010.5 8h.5a2 2 0 012 2 2 2 0 104 0 2 2 0 012-2h1.064M15 20.488V18a2 2 0 012-2h3.064M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              Public
+            </span>
+          )}
+
+          {/* Team Badges */}
+          {teams && teams.length > 0 && teams.map((team) => (
+            <TeamTag key={team.id} team={team} size="md" />
+          ))}
+        </div>
       </div>
 
       {goal.description && (
@@ -108,7 +108,7 @@ export default function GoalCard({ goal, onEdit, onDelete, onStatusChange, teams
             )}
           </div>
 
-          {/* GOOAAALLL!!! Button - Only show if not already completed */}
+          {/* Goal Complete Button - Only show if not already completed */}
           {onStatusChange && goal.status !== 'completed' && (
             <button
               onClick={() => onStatusChange(goal.id, 'completed')}
@@ -117,8 +117,20 @@ export default function GoalCard({ goal, onEdit, onDelete, onStatusChange, teams
               <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
               </svg>
-              GOOAAALLL!!!
+              Goal Complete
             </button>
+          )}
+
+          {/* Category Pills Section - Below Complete Button */}
+          {categories && categories.length > 0 && (
+            <div className="pt-2 border-t border-gray-200">
+              <div className="flex items-center gap-2 flex-wrap">
+                <span className="text-xs text-gray-500 font-medium">Categories:</span>
+                {categories.map((category) => (
+                  <CategoryTag key={category.id} category={category} size="sm" />
+                ))}
+              </div>
+            </div>
           )}
         </div>
       ) : null}

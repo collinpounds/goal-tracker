@@ -1,4 +1,4 @@
-import React, { useEffect, useCallback } from 'react';
+import React, { useEffect } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { useParams } from 'react-router-dom';
 import {
@@ -9,7 +9,7 @@ import {
   setShowForm,
 } from '../models/goalSlice';
 import { fetchTeams, assignGoalToTeams } from '../models/teamSlice';
-import { fetchCategories } from '../models/categorySlice';
+import { fetchCategories, assignGoalToCategories } from '../models/categorySlice';
 import GoalCard from '../components/GoalCard';
 import GoalForm from '../components/GoalForm';
 import SearchAndFilterBar from '../components/SearchAndFilterBar';
@@ -39,13 +39,13 @@ function GoalsView({ view = 'all' }) {
     title = 'All Goals';
   }
 
-  // Fetch goals with filters
-  const fetchGoalsWithFilters = useCallback(() => {
+  // Fetch goals when filters change
+  useEffect(() => {
     dispatch(fetchGoals(filters));
   }, [dispatch, filters]);
 
+  // Fetch teams and categories only on mount
   useEffect(() => {
-    fetchGoalsWithFilters();
     dispatch(fetchTeams());
     dispatch(fetchCategories());
 
@@ -53,37 +53,54 @@ function GoalsView({ view = 'all' }) {
     if (view === 'public' && publicGoals.length === 0) {
       dispatch(fetchPublicGoals());
     }
-  }, [dispatch, view, fetchGoalsWithFilters]);
+  }, [dispatch, view, publicGoals.length]);
 
   const handleCreateGoal = async (goalData) => {
-    const { team_ids, ...goalDataWithoutTeams } = goalData;
+    const { team_ids, category_ids, ...goalDataWithoutRelations } = goalData;
 
     // Create the goal first
-    const result = await dispatch(createGoal(goalDataWithoutTeams));
+    const result = await dispatch(createGoal(goalDataWithoutRelations));
 
-    // If goal was created successfully and teams were selected, assign to teams
-    if (result.payload && team_ids && team_ids.length > 0) {
+    if (result.payload) {
       const goalId = result.payload.id;
-      await dispatch(assignGoalToTeams({ goalId, teamIds: team_ids }));
 
-      // Refresh goals to get updated team assignments
-      fetchGoalsWithFilters();
+      // If goal was created successfully and teams were selected, assign to teams
+      if (team_ids && team_ids.length > 0) {
+        await dispatch(assignGoalToTeams({ goalId, teamIds: team_ids }));
+      }
+
+      // If goal was created successfully and categories were selected, assign to categories
+      if (category_ids && category_ids.length > 0) {
+        await dispatch(assignGoalToCategories({ goalId, categoryIds: category_ids }));
+      }
     }
+
+    // Always refresh goals after creation to get updated data
+    setTimeout(() => dispatch(fetchGoals(filters)), 100);
   };
 
   const handleUpdateGoal = async (goalData) => {
-    const { team_ids, ...goalDataWithoutTeams } = goalData;
+    const { team_ids, category_ids, ...goalDataWithoutRelations } = goalData;
 
     // Update the goal first
-    const result = await dispatch(updateGoal({ id: editingGoal.id, goalData: goalDataWithoutTeams }));
+    const result = await dispatch(updateGoal({ id: editingGoal.id, goalData: goalDataWithoutRelations }));
 
-    // If goal was updated successfully and teams were selected, assign to teams
-    if (result.payload && team_ids && team_ids.length > 0) {
-      await dispatch(assignGoalToTeams({ goalId: editingGoal.id, teamIds: team_ids }));
+    if (result.payload) {
+      // Always assign teams (even if empty array to clear old assignments)
+      if (team_ids !== undefined) {
+        await dispatch(assignGoalToTeams({ goalId: editingGoal.id, teamIds: team_ids }));
+      }
 
-      // Refresh goals to get updated team assignments
-      fetchGoalsWithFilters();
+      // Always assign categories (even if empty array to clear old assignments)
+      if (category_ids !== undefined) {
+        await dispatch(assignGoalToCategories({ goalId: editingGoal.id, categoryIds: category_ids }));
+      }
     }
+
+    // Always refresh goals after update to get updated data with teams/categories
+    setTimeout(() => {
+      dispatch(fetchGoals(filters));
+    }, 200);
   };
 
   const handleCancelEdit = () => {
@@ -98,6 +115,12 @@ function GoalsView({ view = 'all' }) {
   const getGoalTeams = (goal) => {
     // Teams are now included in the goal object from the backend
     return goal.teams || [];
+  };
+
+  // Helper to get categories for a goal
+  const getGoalCategories = (goal) => {
+    // Categories are now included in the goal object from the backend
+    return goal.categories || [];
   };
 
   const isReadOnly = view === 'public';
@@ -116,7 +139,7 @@ function GoalsView({ view = 'all' }) {
 
       {/* Search and Filter Bar (only for 'all' view) */}
       {view === 'all' && !isReadOnly && (
-        <SearchAndFilterBar onFilterChange={fetchGoalsWithFilters} />
+        <SearchAndFilterBar />
       )}
 
       {/* Error Message */}
@@ -173,6 +196,7 @@ function GoalsView({ view = 'all' }) {
               key={goal.id}
               goal={goal}
               teams={getGoalTeams(goal)}
+              categories={getGoalCategories(goal)}
               onEdit={!isReadOnly ? handleEdit : null}
               onDelete={!isReadOnly ? handleDelete : null}
               onStatusChange={!isReadOnly ? handleStatusChange : null}

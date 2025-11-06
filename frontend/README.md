@@ -18,54 +18,63 @@ A modern React application for goal tracking and team collaboration, built with 
 ```
 frontend/
 ├── src/
-│   ├── main.jsx                    # Application entry point
-│   ├── App.jsx                     # Root component with Router
+│   ├── main.jsx                       # Application entry point
+│   ├── App.jsx                        # Root component with Redux Provider & auth listener
 │   │
-│   ├── api/                        # API service layer
-│   │   ├── goals.js               # Goal API endpoints
-│   │   └── teams.js               # Team, invitation, and notification APIs
+│   ├── lib/                           # Utility libraries
+│   │   └── supabase.js                # Supabase client setup
 │   │
-│   ├── components/                 # Reusable UI components
-│   │   ├── GoalCard.jsx           # Goal display card
-│   │   ├── GoalForm.jsx           # Goal creation/edit form
-│   │   ├── Layout.jsx             # Main layout with sidebar
-│   │   ├── Sidebar.jsx            # Navigation sidebar
-│   │   ├── NotificationPanel.jsx  # Notification dropdown
-│   │   ├── ProtectedRoute.jsx     # Auth route guard
-│   │   ├── TeamFormModal.jsx      # Team creation/edit modal
-│   │   └── InviteMemberModal.jsx  # Team invitation modal
+│   ├── api/                           # API service layer
+│   │   ├── goals.js                   # Goal API + axios interceptors
+│   │   ├── teams.js                   # Team, invitation, notification services
+│   │   └── categories.js              # Category API service
 │   │
-│   ├── models/                     # Redux slices (state management)
-│   │   ├── authSlice.js           # Auth state and user session
-│   │   ├── goalSlice.js           # Goals state and operations
-│   │   ├── teamSlice.js           # Teams, members, invitations
-│   │   └── notificationSlice.js   # Notifications state
+│   ├── components/                    # Reusable UI components
+│   │   ├── GoalCard.jsx               # Goal display with teams & categories
+│   │   ├── GoalForm.jsx               # Goal create/edit with team/category selection
+│   │   ├── Layout.jsx                 # Main layout with sidebar & top nav
+│   │   ├── Sidebar.jsx                # Collapsible navigation with hierarchical teams
+│   │   ├── ProtectedRoute.jsx         # Authentication wrapper
+│   │   ├── TeamFormModal.jsx          # Team create/edit modal
+│   │   ├── TeamTag.jsx                # Reusable team badge component
+│   │   ├── CategoryFormModal.jsx      # Category create/edit modal
+│   │   ├── CategoryTag.jsx            # Reusable category badge component
+│   │   ├── NotificationPanel.jsx      # Notification dropdown with badge
+│   │   ├── SearchAndFilterBar.jsx     # Search, filter, sort controls
+│   │   ├── InviteMemberModal.jsx      # Team invitation modal
+│   │   └── VersionDisplay.jsx         # App version display
 │   │
-│   ├── store/                      # Redux store configuration
-│   │   └── index.js               # Store setup with all reducers
+│   ├── models/                        # Redux slices (state management)
+│   │   ├── authSlice.js               # Authentication state & user session
+│   │   ├── goalSlice.js               # Goals + filters + sorting state
+│   │   ├── teamSlice.js               # Teams, members, invitations state
+│   │   ├── categorySlice.js           # Categories state
+│   │   └── notificationSlice.js       # Notifications state
 │   │
-│   ├── routes/                     # Router configuration
-│   │   └── index.jsx              # Route definitions
+│   ├── store/                         # Redux store configuration
+│   │   └── index.js                   # Store setup with all reducers
 │   │
-│   ├── views/                      # Page-level components
-│   │   ├── GoalsView.jsx          # Goals list (all/private/public)
-│   │   ├── TeamDetailsView.jsx    # Team details with tabs
-│   │   ├── ProfileView.jsx        # User profile settings
-│   │   ├── LoginView.jsx          # Login page
-│   │   ├── SignupView.jsx         # Signup page
-│   │   └── NotFoundView.jsx       # 404 error page
+│   ├── routes/                        # Router configuration
+│   │   └── index.jsx                  # Route definitions
 │   │
-│   ├── lib/                        # Utility libraries
-│   │   └── supabase.js            # Supabase client setup
+│   ├── views/                         # Page-level components
+│   │   ├── GoalsView.jsx              # Main goals page (all/private/public tabs)
+│   │   ├── TeamDetailsView.jsx        # Team page with goals & members tabs
+│   │   ├── CategoryView.jsx           # Category goals view
+│   │   ├── ProfileView.jsx            # User profile & settings
+│   │   ├── InviteView.jsx             # Accept team invitation via link
+│   │   ├── LoginView.jsx              # Login page
+│   │   ├── SignupView.jsx             # Signup page
+│   │   └── NotFoundView.jsx           # 404 error page
 │   │
-│   └── index.css                   # Global styles with Tailwind
+│   └── index.css                      # Global styles with Tailwind
 │
-├── public/                         # Static assets
-├── .env                            # Environment variables
-├── vite.config.js                  # Vite configuration
-├── tailwind.config.js              # Tailwind CSS configuration
-├── package.json                    # Dependencies and scripts
-└── README.md                       # This file
+├── public/                            # Static assets
+├── .env                               # Environment variables
+├── vite.config.js                     # Vite configuration
+├── tailwind.config.js                 # Tailwind CSS configuration
+├── package.json                       # Dependencies and scripts
+└── README.md                          # This file
 ```
 
 ## Architecture
@@ -136,38 +145,77 @@ VITE_SUPABASE_ANON_KEY=your-anon-key-here
 - Protected routes requiring authentication
 - Auto-redirect to login for unauthorized access
 - Session persistence across page refreshes
+- Automatic token refresh and error handling
 
 ### Goal Management
-- Create, edit, update, and delete personal goals
-- Track goal status (Pending, In Progress, Completed)
-- Set target completion dates
-- Mark goals as public or private
-- Filter goals by visibility (All/Private/Public)
-- Assign goals to teams
+- **CRUD Operations**: Create, edit, update, and delete personal goals
+- **Status Tracking**: Track goal status (Pending, In Progress, Completed)
+- **Target Dates**: Set target completion dates
+- **Visibility Control**: Mark goals as public or private
+- **View Modes**: Filter goals by visibility (All/Private/Public tabs)
+- **Team Assignment**: Assign goals to multiple teams
+- **Category Organization**: Assign goals to multiple categories
+- **Advanced Search**: Full-text search across goal titles and descriptions
+- **Multi-Filter**: Filter by status (multi-select), categories (multi-select), target date ranges
+- **Smart Sorting**: Sort by target_date, created_at, title, or status (asc/desc)
+- **Optimistic Updates**: Instant UI feedback without waiting for server responses
+
+### Categories & Organization
+- **Custom Categories**: Create categories with custom names, colors (hex), and icons
+- **Multi-Category Goals**: Assign multiple categories to a single goal
+- **Category Views**: Dedicated page showing all goals in a category
+- **Color-Coded Badges**: Visual category badges on goal cards
+- **Category Management**: Edit and delete categories
+- **Quick Creation**: Create categories on-the-fly from goal form
 
 ### Teams & Collaboration
-- Create teams with names, descriptions, and color themes
-- Hierarchical team structure (nested up to 3 levels)
-- Invite members via email or shareable invite links
-- View team members with their names and emails
-- Manage team goals collaboratively
-- Owner and member roles
+- **Team Creation**: Create teams with names, descriptions, and custom color themes
+- **Hierarchical Structure**: Nested teams up to 3 levels deep with visual indentation
+- **Role Management**: Owner and member roles with appropriate permissions
+- **Team Views**: Dedicated team pages with goals and members tabs
+- **Invite Members**: Send invitations via email or shareable invite links
+- **Member Management**: View team members with names, emails, and roles
+- **Team Goals**: Assign goals to multiple teams, view team-specific goals
+- **Color Themes**: 10 predefined color options for visual distinction
+- **Collapsible Sidebar**: Toggle between full and icon-only navigation
+
+### Invitations
+- **Email Invitations**: Send team invitations to email addresses
+- **Shareable Links**: Generate unique invite codes for link-based joining
+- **Invitation Management**: View pending, accepted, declined invitations
+- **One-Click Accept**: Accept invitations directly from notifications or invite page
+- **Expiration Handling**: 7-day expiration with clear status indicators
 
 ### Notifications
-- Real-time notification panel with unread count
-- Notifications for:
+- **Real-Time Updates**: Notification panel with unread count badge
+- **Auto-Polling**: Check for new notifications every 30 seconds
+- **Notification Types**:
   - Team invitations
-  - New team members
+  - New team members added
+  - Members removed
   - Goal assignments
-- One-click invitation acceptance
-- Mark notifications as read
-- Auto-polling every 30 seconds
+  - Goal completions
+  - Team deletions
+- **One-Click Actions**: Accept invitations directly from notifications
+- **Mark as Read**: Individual or bulk mark as read
+- **Interactive Panel**: Dropdown panel with scrollable list
 
 ### User Profile
-- Edit profile information (name, email, phone)
-- Change password via email
-- View account creation and last sign-in dates
-- User avatar with initials throughout app
+- **Profile Editing**: Update first name, last name, email, phone number
+- **Password Management**: Change password via email verification
+- **Account Info**: View account creation and last sign-in dates
+- **User Avatar**: Display user initials in avatar throughout app
+- **Metadata Storage**: User information stored in Supabase Auth metadata
+
+### UI/UX Features
+- **Responsive Design**: Mobile, tablet, and desktop layouts
+- **Dark Mode Support**: Tailwind CSS dark mode utilities
+- **Loading States**: Skeleton loaders and loading indicators
+- **Error Handling**: User-friendly error messages
+- **Empty States**: Helpful messages when no data exists
+- **Confirmation Dialogs**: Prevent accidental deletions
+- **Toast Notifications**: Success/error feedback (optional enhancement)
+- **Keyboard Navigation**: Accessible navigation patterns
 
 ## State Management
 
@@ -176,111 +224,163 @@ VITE_SUPABASE_ANON_KEY=your-anon-key-here
 ```javascript
 {
   auth: {
-    user: null | User,      // Current user object
-    loading: boolean,       // Auth loading state
-    error: string | null    // Auth error message
+    user: null | User,           // Current user object from Supabase
+    session: null | Session,     // Current session with token
+    loading: boolean,            // Auth loading state
+    error: string | null         // Auth error message
   },
   goals: {
-    goals: Goal[],          // Array of goals
+    goals: Goal[],               // User's goals
+    publicGoals: Goal[],         // All public goals from all users
     loading: boolean,
     error: string | null,
-    showForm: boolean,      // Form visibility
-    editingGoal: Goal | null
+    editingGoal: Goal | null,
+    showForm: boolean,           // Form modal visibility
+    activeTab: string,           // 'my-goals', 'private', 'public'
+    filters: {
+      search: string,            // Text search query
+      status: string[],          // Status filter (multi-select)
+      category_ids: number[],    // Category filter (multi-select)
+      target_date_from: string,  // Date range start
+      target_date_to: string,    // Date range end
+      sort_by: string,           // Sort field (target_date, created_at, title, status)
+      sort_order: string         // Sort direction (asc, desc)
+    }
+  },
+  categories: {
+    categories: Category[],      // User's categories
+    selectedCategory: Category | null,
+    categoryGoals: Goal[],       // Goals in selected category
+    loading: boolean,
+    error: string | null,
+    showCategoryForm: boolean,
+    editingCategory: Category | null
   },
   teams: {
-    teams: Team[],                    // User's teams
-    teamMembers: { [teamId]: Member[] }, // Members by team
-    teamGoals: { [teamId]: Goal[] },     // Goals by team
+    teams: Team[],                           // User's teams (hierarchical)
+    teamMembers: { [teamId]: Member[] },     // Members by team ID
+    teamGoals: { [teamId]: Goal[] },         // Goals by team ID
     teamInvitations: { [teamId]: Invitation[] },
-    pendingInvitations: Invitation[], // User's pending invites
+    pendingInvitations: Invitation[],        // User's pending invites
+    selectedTeamId: number | null,
     loading: boolean,
     error: string | null,
     showTeamForm: boolean,
     editingTeam: Team | null,
     showInviteModal: boolean,
-    sidebarCollapsed: boolean
+    invitingTeamId: number | null,
+    sidebarCollapsed: boolean                // Sidebar toggle state
   },
   notifications: {
     notifications: Notification[],
-    unreadCount: number,
-    showPanel: boolean,
+    unreadCount: number,                     // Badge count
     loading: boolean,
-    error: string | null
+    error: string | null,
+    panelOpen: boolean                       // Dropdown panel state
   }
 }
 ```
 
 ### Key Redux Slices
 
-#### authSlice
-- `login(credentials)` - Authenticate user
+#### authSlice ([authSlice.js](src/models/authSlice.js))
+- `login(credentials)` - Authenticate user with email/password
 - `signup(credentials)` - Create new user account
-- `logout()` - Sign out user
-- `checkSession()` - Verify existing session
+- `logout()` - Sign out user and clear session
+- `checkSession()` - Verify existing session on app load
+- `updateProfile(data)` - Update user profile metadata
 
-#### goalSlice
-- `fetchGoals()` - Get all goals
-- `fetchPrivateGoals()` - Get private goals
-- `fetchPublicGoals()` - Get public goals
+#### goalSlice ([goalSlice.js](src/models/goalSlice.js))
+- `fetchGoals(filters)` - Get goals with search, filter, sort
+- `fetchPublicGoals()` - Get all public goals from all users
 - `createGoal(data)` - Create new goal
-- `updateGoal({id, data})` - Update existing goal
-- `deleteGoal(id)` - Delete goal
-- `assignGoalToTeams({goalId, teamIds})` - Assign goal to teams
+- `updateGoal({id, data})` - Update existing goal (optimistic)
+- `deleteGoal(id)` - Delete goal (optimistic)
+- `assignGoalToTeams({goalId, teamIds})` - Assign goal to teams (batch)
+- `setFilters(filters)` - Update search/filter/sort criteria
+- `clearFilters()` - Reset all filters
+- `setActiveTab(tab)` - Switch between all/private/public views
 
-#### teamSlice
-- `fetchTeams()` - Get user's teams
+#### categorySlice ([categorySlice.js](src/models/categorySlice.js))
+- `fetchCategories()` - Get user's categories
+- `fetchCategoryGoals(categoryId)` - Get goals in category
+- `createCategory(data)` - Create new category (name, color, icon)
+- `updateCategory({id, data})` - Update category
+- `deleteCategory(id)` - Delete category
+
+#### teamSlice ([teamSlice.js](src/models/teamSlice.js))
+- `fetchTeams()` - Get user's teams (hierarchical)
 - `createTeam(data)` - Create new team
-- `updateTeam({id, data})` - Update team
-- `deleteTeam(id)` - Delete team
-- `fetchTeamMembers(teamId)` - Get team members
+- `updateTeam({id, data})` - Update team (owners only)
+- `deleteTeam(id)` - Delete team (owners only)
+- `fetchTeamMembers(teamId)` - Get team members with user info
 - `fetchTeamGoals(teamId)` - Get team goals
-- `sendInvitation({teamId, email})` - Send team invitation
+- `sendInvitation({teamId, email})` - Send email invitation
 - `fetchTeamInvitations(teamId)` - Get team invitations
+- `fetchPendingInvitations()` - Get user's pending invitations
 - `acceptInvitation(id)` - Accept invitation
 - `declineInvitation(id)` - Decline invitation
+- `toggleSidebar()` - Collapse/expand sidebar
 
-#### notificationSlice
-- `fetchNotifications()` - Get user notifications
+#### notificationSlice ([notificationSlice.js](src/models/notificationSlice.js))
+- `fetchNotifications(unreadOnly)` - Get user notifications
 - `markAsRead(id)` - Mark notification as read
-- `markAllAsRead()` - Mark all as read
-- `togglePanel()` - Show/hide notification panel
+- `markAllAsRead()` - Mark all notifications as read
+- `togglePanel()` - Show/hide notification dropdown
 
 ## Routing
 
+Routing is configured in [routes/index.jsx](src/routes/index.jsx) using React Router v6.
+
 ### Public Routes
-- `/login` - Login page
-- `/signup` - Signup page
+- `/login` - Login page ([LoginView.jsx](src/views/LoginView.jsx))
+- `/signup` - Signup page ([SignupView.jsx](src/views/SignupView.jsx))
+- `/invite/:inviteCode` - Accept team invitation via shareable link ([InviteView.jsx](src/views/InviteView.jsx))
 
 ### Protected Routes (require authentication)
+All protected routes are wrapped in [ProtectedRoute.jsx](src/components/ProtectedRoute.jsx) and use the [Layout.jsx](src/components/Layout.jsx) component:
+
 - `/` - Redirects to `/goals`
-- `/goals` - All goals view
-- `/goals/private` - Private goals only
-- `/goals/public` - Public goals only
-- `/teams/:teamId` - Team details with goals/members tabs
-- `/profile` - User profile settings
+- `/goals` - All goals view with tabs (all/private/public) ([GoalsView.jsx](src/views/GoalsView.jsx))
+- `/goals/private` - Private goals only (same component, different tab)
+- `/goals/public` - Public goals from all users (same component, different tab)
+- `/teams/:teamId` - Team details with goals & members tabs ([TeamDetailsView.jsx](src/views/TeamDetailsView.jsx))
+- `/categories/:categoryId` - Category goals view ([CategoryView.jsx](src/views/CategoryView.jsx))
+- `/profile` - User profile settings ([ProfileView.jsx](src/views/ProfileView.jsx))
+- `*` - 404 Not Found ([NotFoundView.jsx](src/views/NotFoundView.jsx))
 
 ### Route Guards
-- `ProtectedRoute` component wraps authenticated routes
+- **ProtectedRoute** component wraps all authenticated routes
 - Redirects to `/login` if not authenticated
-- Checks session on mount
+- Checks session on component mount
+- Preserves intended destination for redirect after login
 
 ## Components
 
 ### Layout Components
-- **Layout** - Main app layout with sidebar and top nav
-- **Sidebar** - Collapsible navigation with teams
-- **NotificationPanel** - Dropdown panel for notifications
+- **[Layout.jsx](src/components/Layout.jsx)** - Main app layout with sidebar, top nav, and notification bell
+- **[Sidebar.jsx](src/components/Sidebar.jsx)** - Collapsible navigation with hierarchical teams and category list
+- **[NotificationPanel.jsx](src/components/NotificationPanel.jsx)** - Dropdown notification panel with unread badge
+- **[VersionDisplay.jsx](src/components/VersionDisplay.jsx)** - App version display in footer
 
-### Feature Components
-- **GoalCard** - Display individual goal with actions
-- **GoalForm** - Create/edit goal form
-- **TeamFormModal** - Create/edit team modal
-- **InviteMemberModal** - Team invitation modal
+### Goal Components
+- **[GoalCard.jsx](src/components/GoalCard.jsx)** - Goal display card with team/category badges, status dropdown, and actions
+- **[GoalForm.jsx](src/components/GoalForm.jsx)** - Create/edit goal modal with team and category multi-select
+- **[SearchAndFilterBar.jsx](src/components/SearchAndFilterBar.jsx)** - Search box with filter/sort controls
+
+### Team Components
+- **[TeamFormModal.jsx](src/components/TeamFormModal.jsx)** - Create/edit team modal with color picker and parent selection
+- **[TeamTag.jsx](src/components/TeamTag.jsx)** - Reusable team badge with custom color
+- **[InviteMemberModal.jsx](src/components/InviteMemberModal.jsx)** - Team invitation modal with email input and link generation
+
+### Category Components
+- **[CategoryFormModal.jsx](src/components/CategoryFormModal.jsx)** - Create/edit category modal with color and icon pickers
+- **[CategoryTag.jsx](src/components/CategoryTag.jsx)** - Reusable category badge with custom color and icon
 
 ### Auth Components
-- **ProtectedRoute** - HOC for authenticated routes
-- **LoginView** - Login form
-- **SignupView** - Signup form
+- **[ProtectedRoute.jsx](src/components/ProtectedRoute.jsx)** - HOC for authenticated routes with redirect logic
+- **[LoginView.jsx](src/views/LoginView.jsx)** - Login form with email/password
+- **[SignupView.jsx](src/views/SignupView.jsx)** - Signup form with profile fields
 
 ## Styling
 

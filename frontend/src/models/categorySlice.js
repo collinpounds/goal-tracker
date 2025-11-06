@@ -82,6 +82,18 @@ export const removeCategoryFromGoal = createAsyncThunk(
   }
 );
 
+export const assignGoalToCategories = createAsyncThunk(
+  'categories/assignGoalToCategories',
+  async ({ goalId, categoryIds }, { rejectWithValue }) => {
+    try {
+      await categoryAPI.assignGoalToCategories(goalId, categoryIds);
+      return { goalId, categoryIds };
+    } catch (error) {
+      return rejectWithValue(error.response?.data || 'Failed to assign goal to categories');
+    }
+  }
+);
+
 const categorySlice = createSlice({
   name: 'categories',
   initialState: {

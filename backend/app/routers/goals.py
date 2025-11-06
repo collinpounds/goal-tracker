@@ -328,7 +328,40 @@ async def update_goal(
     if updated_goal is None:
         raise HTTPException(status_code=500, detail="Failed to update goal")
 
-    return updated_goal
+    # Fetch the complete goal with team and category information
+    response = (
+        supabase.table("goals")
+        .select("*, goal_teams(team_id, teams(id, name, color_theme)), goal_categories(category_id, categories(id, name, color, icon))")
+        .eq("id", goal_id)
+        .eq("user_id", user_id)
+        .execute()
+    )
+
+    if not response.data or len(response.data) == 0:
+        return updated_goal
+
+    goal_data_complete = response.data[0]
+
+    # Extract teams from goal_teams relationship
+    teams = []
+    if "goal_teams" in goal_data_complete and goal_data_complete["goal_teams"]:
+        for gt in goal_data_complete["goal_teams"]:
+            if gt and "teams" in gt and gt["teams"]:
+                teams.append(gt["teams"])
+
+    # Extract categories from goal_categories relationship
+    categories = []
+    if "goal_categories" in goal_data_complete and goal_data_complete["goal_categories"]:
+        for gc in goal_data_complete["goal_categories"]:
+            if gc and "categories" in gc and gc["categories"]:
+                categories.append(gc["categories"])
+
+    # Remove junction tables from the goal data
+    goal_data_clean = {k: v for k, v in goal_data_complete.items() if k not in ["goal_teams", "goal_categories"]}
+    goal_data_clean["teams"] = teams
+    goal_data_clean["categories"] = categories
+
+    return goal_data_clean
 
 
 @router.delete(
@@ -378,6 +411,71 @@ async def delete_goal(
 
 
 @router.post(
+    "/goals/{goal_id}/categories",
+    status_code=201,
+    summary="Assign goal to categories",
+    response_description="Success message"
+)
+async def assign_goal_to_categories(
+    goal_id: int,
+    category_ids: List[int],
+    supabase: Client = Depends(get_supabase),
+    user_id: str = Depends(get_current_user_id)
+):
+    """
+    Assign a goal to one or more categories.
+
+    This endpoint replaces all existing category assignments with the new ones.
+    User must own the goal and all specified categories.
+
+    **Authentication Required:** Bearer token must be provided in Authorization header.
+
+    **Request Body:**
+    - **category_ids**: List of category IDs to assign to the goal (array of integers)
+
+    **Example Request:**
+    ```json
+    [1, 2, 3]
+    ```
+    """
+    # Verify goal exists and user owns it
+    goal = await Goal.get_by_id(supabase, goal_id, user_id)
+    if not goal:
+        raise HTTPException(status_code=404, detail="Goal not found or you do not own it")
+
+    # Verify user owns all specified categories
+    from ..models.category import Category
+    for category_id in category_ids:
+        category = await Category.get_by_id(supabase, category_id, user_id)
+        if not category:
+            raise HTTPException(
+                status_code=404,
+                detail=f"Category {category_id} not found or you do not own it"
+            )
+
+    # Remove all existing category assignments for this goal first
+    supabase.table("goal_categories").delete().eq("goal_id", goal_id).execute()
+
+    # Assign goal to all categories
+    for category_id in category_ids:
+        try:
+            supabase.table("goal_categories").insert({
+                "goal_id": goal_id,
+                "category_id": category_id
+            }).execute()
+        except Exception as e:
+            error_msg = str(e)
+            # If already assigned, that's okay
+            if "goal_categories_unique" not in error_msg and "duplicate" not in error_msg.lower():
+                raise HTTPException(
+                    status_code=500,
+                    detail=f"Failed to assign goal to category {category_id}: {error_msg}"
+                )
+
+    return {"message": f"Goal assigned to {len(category_ids)} category(s)"}
+
+
+@router.post(
     "/goals/{goal_id}/categories/{category_id}",
     status_code=201,
     summary="Add a category to a goal",
@@ -424,8 +522,9 @@ async def add_category_to_goal(
         return {"message": "Category added to goal successfully"}
     except Exception as e:
         error_msg = str(e)
+        # If already assigned, that's okay - just return success
         if "goal_categories_unique" in error_msg or "duplicate" in error_msg.lower():
-            raise HTTPException(status_code=400, detail="Category already added to this goal")
+            return {"message": "Category already assigned to this goal"}
         raise HTTPException(status_code=400, detail=f"Failed to add category: {error_msg}")
 
 

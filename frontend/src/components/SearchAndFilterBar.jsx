@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { setFilters, clearFilters } from '../models/goalSlice';
 
-function SearchAndFilterBar({ onFilterChange }) {
+function SearchAndFilterBar() {
   const dispatch = useDispatch();
   const filters = useSelector((state) => state.goals.filters);
   const categories = useSelector((state) => state.categories.categories);
@@ -15,12 +15,11 @@ function SearchAndFilterBar({ onFilterChange }) {
     const timer = setTimeout(() => {
       if (localSearch !== filters.search) {
         dispatch(setFilters({ search: localSearch }));
-        if (onFilterChange) onFilterChange();
       }
     }, 300);
 
     return () => clearTimeout(timer);
-  }, [localSearch, dispatch, onFilterChange, filters.search]);
+  }, [localSearch, dispatch, filters.search]);
 
   const handleStatusToggle = (status) => {
     const newStatus = filters.status.includes(status)
@@ -28,7 +27,6 @@ function SearchAndFilterBar({ onFilterChange }) {
       : [...filters.status, status];
 
     dispatch(setFilters({ status: newStatus }));
-    if (onFilterChange) onFilterChange();
   };
 
   const handleCategoryToggle = (categoryId) => {
@@ -37,7 +35,6 @@ function SearchAndFilterBar({ onFilterChange }) {
       : [...filters.category_ids, categoryId];
 
     dispatch(setFilters({ category_ids: newCategories }));
-    if (onFilterChange) onFilterChange();
   };
 
   const handleSortChange = (e) => {
@@ -75,13 +72,11 @@ function SearchAndFilterBar({ onFilterChange }) {
     }
 
     dispatch(setFilters({ sort_by, sort_order }));
-    if (onFilterChange) onFilterChange();
   };
 
   const handleClearFilters = () => {
     setLocalSearch('');
     dispatch(clearFilters());
-    if (onFilterChange) onFilterChange();
   };
 
   const getCurrentSortValue = () => {

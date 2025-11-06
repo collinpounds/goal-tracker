@@ -243,10 +243,13 @@ class Goal(GoalBase):
 
         # Filter by category if specified (post-query since it's a many-to-many)
         if category_ids:
-            goals_with_relations = [
-                goal for goal in goals_with_relations
-                if any(cat["id"] in category_ids for cat in goal["categories"])
-            ]
+            filtered_goals = []
+            for goal in goals_with_relations:
+                goal_category_ids = [cat["id"] for cat in goal["categories"]]
+                has_match = any(cat_id in category_ids for cat_id in goal_category_ids)
+                if has_match:
+                    filtered_goals.append(goal)
+            goals_with_relations = filtered_goals
 
         return goals_with_relations
 
@@ -254,21 +257,47 @@ class Goal(GoalBase):
     async def get_all_public(cls, supabase: Client) -> List["Goal"]:
         """
         Retrieve all public goals from all users, ordered by created_at descending.
+        Includes teams and categories for each goal.
 
         Args:
             supabase: Supabase client instance
 
         Returns:
-            List of public Goal instances
+            List of public goals with teams and categories
         """
         response = (
             supabase.table("goals")
-            .select("*")
+            .select("*, goal_teams(team_id, teams(id, name, color_theme)), goal_categories(category_id, categories(id, name, color, icon))")
             .eq("is_public", True)
             .order("created_at", desc=True)
             .execute()
         )
-        return [cls(**goal) for goal in response.data]
+
+        # Transform the data to include teams and categories arrays
+        goals_with_relations = []
+        for goal_data in response.data:
+            # Extract teams from goal_teams relationship
+            teams = []
+            if "goal_teams" in goal_data and goal_data["goal_teams"]:
+                for gt in goal_data["goal_teams"]:
+                    if gt and "teams" in gt and gt["teams"]:
+                        teams.append(gt["teams"])
+
+            # Extract categories from goal_categories relationship
+            categories = []
+            if "goal_categories" in goal_data and goal_data["goal_categories"]:
+                for gc in goal_data["goal_categories"]:
+                    if gc and "categories" in gc and gc["categories"]:
+                        categories.append(gc["categories"])
+
+            # Remove junction tables from the goal data
+            goal_data_clean = {k: v for k, v in goal_data.items() if k not in ["goal_teams", "goal_categories"]}
+            goal_data_clean["teams"] = teams
+            goal_data_clean["categories"] = categories
+
+            goals_with_relations.append(goal_data_clean)
+
+        return goals_with_relations
 
     @classmethod
     async def get_by_id(cls, supabase: Client, goal_id: int, user_id: str) -> Optional["Goal"]:

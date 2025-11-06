@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 
-export default function GoalForm({ goal, onSubmit, onCancel, teams = [] }) {
+export default function GoalForm({ goal, onSubmit, onCancel, teams = [], categories = [] }) {
   const [formData, setFormData] = useState({
     title: '',
     description: '',
@@ -8,17 +8,24 @@ export default function GoalForm({ goal, onSubmit, onCancel, teams = [] }) {
     target_date: '',
     is_public: false,
     team_ids: [],
+    category_ids: [],
   });
 
   useEffect(() => {
     if (goal) {
+      // Extract team IDs from teams array
+      const teamIds = goal.teams ? goal.teams.map(team => team.id) : [];
+      // Extract category IDs from categories array
+      const categoryIds = goal.categories ? goal.categories.map(category => category.id) : [];
+
       setFormData({
         title: goal.title || '',
         description: goal.description || '',
         status: goal.status || 'pending',
         target_date: goal.target_date ? goal.target_date.split('T')[0] : '',
         is_public: goal.is_public || false,
-        team_ids: goal.team_ids || [],
+        team_ids: teamIds,
+        category_ids: categoryIds,
       });
     }
   }, [goal]);
@@ -43,6 +50,12 @@ export default function GoalForm({ goal, onSubmit, onCancel, teams = [] }) {
     const options = Array.from(e.target.selectedOptions);
     const selectedIds = options.map(opt => parseInt(opt.value));
     setFormData({ ...formData, team_ids: selectedIds });
+  };
+
+  const handleCategorySelection = (e) => {
+    const options = Array.from(e.target.selectedOptions);
+    const selectedIds = options.map(opt => parseInt(opt.value));
+    setFormData({ ...formData, category_ids: selectedIds });
   };
 
   return (
@@ -111,24 +124,46 @@ export default function GoalForm({ goal, onSubmit, onCancel, teams = [] }) {
         </div>
       </div>
 
-      <div className="mb-3">
-        <label className="block text-gray-700 font-medium mb-1 text-sm">
-          Teams
-        </label>
-        <select
-          multiple
-          value={formData.team_ids}
-          onChange={handleTeamSelection}
-          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
-          size="3"
-        >
-          {teams.map((team) => (
-            <option key={team.id} value={team.id}>
-              {team.name}
-            </option>
-          ))}
-        </select>
-        <p className="text-xs text-gray-500 mt-1">Hold Ctrl/Cmd to select multiple teams</p>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-3">
+        <div>
+          <label className="block text-gray-700 font-medium mb-1 text-sm">
+            Teams
+          </label>
+          <select
+            multiple
+            value={formData.team_ids}
+            onChange={handleTeamSelection}
+            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+            size="3"
+          >
+            {teams.map((team) => (
+              <option key={team.id} value={team.id}>
+                {team.name}
+              </option>
+            ))}
+          </select>
+          <p className="text-xs text-gray-500 mt-1">Hold Ctrl/Cmd to select multiple</p>
+        </div>
+
+        <div>
+          <label className="block text-gray-700 font-medium mb-1 text-sm">
+            Categories
+          </label>
+          <select
+            multiple
+            value={formData.category_ids}
+            onChange={handleCategorySelection}
+            className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 text-sm"
+            size="3"
+          >
+            {categories.map((category) => (
+              <option key={category.id} value={category.id}>
+                {category.icon && `${category.icon} `}{category.name}
+              </option>
+            ))}
+          </select>
+          <p className="text-xs text-gray-500 mt-1">Hold Ctrl/Cmd to select multiple</p>
+        </div>
       </div>
 
       <div className="mb-4">

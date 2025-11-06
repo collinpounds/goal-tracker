@@ -3,9 +3,11 @@ import { useDispatch, useSelector } from 'react-redux';
 import Sidebar from './Sidebar';
 import NotificationPanel from './NotificationPanel';
 import TeamFormModal from './TeamFormModal';
+import CategoryFormModal from './CategoryFormModal';
 import GoalForm from './GoalForm';
 import { setShowForm, setEditingGoal, createGoal, updateGoal, fetchGoals } from '../models/goalSlice';
 import { fetchTeams, assignGoalToTeams, fetchTeamGoals } from '../models/teamSlice';
+import { fetchCategories, assignGoalToCategories, fetchCategoryGoals } from '../models/categorySlice';
 import { useEffect } from 'react';
 
 const Layout = () => {
@@ -13,9 +15,11 @@ const Layout = () => {
   const location = useLocation();
   const { showForm, editingGoal } = useSelector((state) => state.goals);
   const { teams } = useSelector((state) => state.teams);
+  const { categories } = useSelector((state) => state.categories);
 
   useEffect(() => {
     dispatch(fetchTeams());
+    dispatch(fetchCategories());
   }, [dispatch]);
 
   const handleNewGoal = () => {
@@ -23,18 +27,33 @@ const Layout = () => {
   };
 
   const handleCreateGoal = async (goalData) => {
-    const { team_ids, ...goalDataWithoutTeams } = goalData;
+    const { team_ids, category_ids, ...goalDataWithoutRelations } = goalData;
 
-    const result = await dispatch(createGoal(goalDataWithoutTeams));
+    const result = await dispatch(createGoal(goalDataWithoutRelations));
 
-    if (result.payload && team_ids && team_ids.length > 0) {
+    if (result.payload) {
       const goalId = result.payload.id;
-      await dispatch(assignGoalToTeams({ goalId, teamIds: team_ids }));
 
-      // Only refresh team goals if we assigned to teams
-      const teamIdMatch = location.pathname.match(/\/teams\/(\d+)/);
-      if (teamIdMatch) {
-        dispatch(fetchTeamGoals(parseInt(teamIdMatch[1])));
+      // Assign to teams if selected
+      if (team_ids && team_ids.length > 0) {
+        await dispatch(assignGoalToTeams({ goalId, teamIds: team_ids }));
+
+        // Only refresh team goals if we assigned to teams
+        const teamIdMatch = location.pathname.match(/\/teams\/(\d+)/);
+        if (teamIdMatch) {
+          dispatch(fetchTeamGoals(parseInt(teamIdMatch[1])));
+        }
+      }
+
+      // Assign to categories if selected
+      if (category_ids && category_ids.length > 0) {
+        await dispatch(assignGoalToCategories({ goalId, categoryIds: category_ids }));
+
+        // Refresh category goals if we're on a category page
+        const categoryIdMatch = location.pathname.match(/\/categories\/(\d+)/);
+        if (categoryIdMatch) {
+          dispatch(fetchCategoryGoals(parseInt(categoryIdMatch[1])));
+        }
       }
     }
 
@@ -43,23 +62,39 @@ const Layout = () => {
   };
 
   const handleUpdateGoal = async (goalData) => {
-    const { team_ids, ...goalDataWithoutTeams } = goalData;
+    const { team_ids, category_ids, ...goalDataWithoutRelations } = goalData;
 
-    const result = await dispatch(updateGoal({ id: editingGoal.id, goalData: goalDataWithoutTeams }));
+    const result = await dispatch(updateGoal({ id: editingGoal.id, goalData: goalDataWithoutRelations }));
 
-    if (result.payload && team_ids && team_ids.length > 0) {
-      await dispatch(assignGoalToTeams({ goalId: editingGoal.id, teamIds: team_ids }));
+    if (result.payload) {
+      // Always assign teams (even if empty array to clear old assignments)
+      if (team_ids !== undefined) {
+        await dispatch(assignGoalToTeams({ goalId: editingGoal.id, teamIds: team_ids }));
 
-      // Only refresh team goals if we updated team assignments
-      const teamIdMatch = location.pathname.match(/\/teams\/(\d+)/);
-      if (teamIdMatch) {
-        dispatch(fetchTeamGoals(parseInt(teamIdMatch[1])));
+        // Refresh team goals if we're on a team page
+        const teamIdMatch = location.pathname.match(/\/teams\/(\d+)/);
+        if (teamIdMatch) {
+          dispatch(fetchTeamGoals(parseInt(teamIdMatch[1])));
+        }
+      }
+
+      // Always assign categories (even if empty array to clear old assignments)
+      if (category_ids !== undefined) {
+        await dispatch(assignGoalToCategories({ goalId: editingGoal.id, categoryIds: category_ids }));
+
+        // Refresh category goals if we're on a category page
+        const categoryIdMatch = location.pathname.match(/\/categories\/(\d+)/);
+        if (categoryIdMatch) {
+          dispatch(fetchCategoryGoals(parseInt(categoryIdMatch[1])));
+        }
       }
     }
 
-    // Redux already updated the goal in state via updateGoal.fulfilled
-    // Both goalSlice and teamSlice handle the update optimistically
-    // No need to fetchGoals() - it would cause unnecessary re-renders
+    // Need to refresh goals to get updated teams/categories from backend
+    // The updateGoal response has teams/categories, but they're updated AFTER via assignment endpoints
+    setTimeout(() => {
+      dispatch(fetchGoals({}));
+    }, 200);
   };
 
   const handleCancelEdit = () => {
@@ -103,6 +138,7 @@ const Layout = () => {
 
       {/* Modals */}
       <TeamFormModal />
+      <CategoryFormModal />
 
       {/* Goal Form Modal - Global */}
       {showForm && (
@@ -113,6 +149,7 @@ const Layout = () => {
               onSubmit={editingGoal ? handleUpdateGoal : handleCreateGoal}
               onCancel={handleCancelEdit}
               teams={teams}
+              categories={categories}
             />
           </div>
         </div>

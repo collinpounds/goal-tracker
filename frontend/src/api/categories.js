@@ -116,3 +116,11 @@ export const addCategoryToGoal = async (goalId, categoryId) => {
 export const removeCategoryFromGoal = async (goalId, categoryId) => {
   await api.delete(`/api/goals/${goalId}/categories/${categoryId}`);
 };
+
+/**
+ * Assign a goal to multiple categories (replaces all existing assignments)
+ */
+export const assignGoalToCategories = async (goalId, categoryIds) => {
+  const response = await api.post(`/api/goals/${goalId}/categories`, categoryIds);
+  return response.data;
+};

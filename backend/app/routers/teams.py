@@ -833,16 +833,40 @@ async def read_team_goals(
     if not goal_ids:
         return []
 
-    # Fetch all goals
+    # Fetch all goals with team and category information
     response = (
         supabase.table("goals")
-        .select("*")
+        .select("*, goal_teams(team_id, teams(id, name, color_theme)), goal_categories(category_id, categories(id, name, color, icon))")
         .in_("id", goal_ids)
         .order("created_at", desc=True)
         .execute()
     )
 
-    return [Goal(**goal) for goal in response.data]
+    # Transform the data to include teams and categories arrays
+    goals_with_relations = []
+    for goal_data in response.data:
+        # Extract teams from goal_teams relationship
+        teams = []
+        if "goal_teams" in goal_data and goal_data["goal_teams"]:
+            for gt in goal_data["goal_teams"]:
+                if gt and "teams" in gt and gt["teams"]:
+                    teams.append(gt["teams"])
+
+        # Extract categories from goal_categories relationship
+        categories = []
+        if "goal_categories" in goal_data and goal_data["goal_categories"]:
+            for gc in goal_data["goal_categories"]:
+                if gc and "categories" in gc and gc["categories"]:
+                    categories.append(gc["categories"])
+
+        # Remove junction tables from the goal data
+        goal_data_clean = {k: v for k, v in goal_data.items() if k not in ["goal_teams", "goal_categories"]}
+        goal_data_clean["teams"] = teams
+        goal_data_clean["categories"] = categories
+
+        goals_with_relations.append(goal_data_clean)
+
+    return goals_with_relations
 
 
 @router.post(
@@ -880,6 +904,9 @@ async def assign_goal_to_teams(
                 status_code=status.HTTP_404_NOT_FOUND,
                 detail=f"Team {team_id} not found or you are not a member"
             )
+
+    # Remove all existing team assignments for this goal first
+    supabase.table("goal_teams").delete().eq("goal_id", goal_id).execute()
 
     # Assign goal to all teams
     for team_id in team_ids:

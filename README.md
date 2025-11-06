@@ -37,53 +37,86 @@ goal_tracker/
 ├── backend/
 │   ├── app/
 │   │   ├── __init__.py
-│   │   ├── main.py              # FastAPI app initialization & middleware
-│   │   ├── config.py            # Environment configuration
-│   │   ├── dependencies.py      # Shared dependencies
-│   │   ├── supabase_client.py   # Supabase client setup
-│   │   ├── models/              # Pydantic schemas
-│   │   │   └── goal.py          # Goal models
-│   │   └── routers/             # API route handlers
-│   │       ├── goals.py         # Goal CRUD endpoints
-│   │       └── health.py        # Health check
+│   │   ├── main.py                # FastAPI app initialization & middleware
+│   │   ├── config.py              # Environment configuration
+│   │   ├── auth.py                # JWT authentication & user extraction
+│   │   ├── supabase_client.py     # Supabase client setup
+│   │   ├── models/                # Pydantic schemas with CRUD methods
+│   │   │   ├── goal.py           # Goal models with search, filter, sort
+│   │   │   ├── team.py           # Team, TeamMember, Invitation models
+│   │   │   └── category.py       # Category models
+│   │   └── routers/               # API route handlers
+│   │       ├── health.py         # Health check endpoints
+│   │       ├── goals.py          # Goal CRUD + category assignment (20+ endpoints)
+│   │       ├── teams.py          # Team management, invites, notifications (25+ endpoints)
+│   │       └── categories.py     # Category CRUD (7 endpoints)
+│   ├── tests/
+│   │   ├── test_integration.py   # 20+ integration tests
+│   │   └── run_tests.sh          # Test runner script
 │   ├── Dockerfile
-│   └── requirements.txt
+│   └── pyproject.toml             # Modern Python dependency management
 ├── frontend/
 │   ├── src/
-│   │   ├── main.jsx             # React entry point
-│   │   ├── App.jsx              # Root component with Router
-│   │   ├── api/                 # API service layer
-│   │   │   └── goals.js         # Goal API calls
-│   │   ├── components/          # Reusable UI components
-│   │   │   ├── GoalCard.jsx
-│   │   │   └── GoalForm.jsx
-│   │   ├── models/              # Redux state management
-│   │   │   └── goalSlice.js     # Goal state & thunks
-│   │   ├── store/               # Redux store
+│   │   ├── main.jsx               # React entry point
+│   │   ├── App.jsx                # Root component with Redux & auth listener
+│   │   ├── lib/
+│   │   │   └── supabase.js       # Supabase client initialization
+│   │   ├── api/                   # API service layer
+│   │   │   ├── goals.js          # Goal API + axios config
+│   │   │   ├── teams.js          # Team, invitation, notification services
+│   │   │   └── categories.js     # Category API service
+│   │   ├── components/            # Reusable UI components
+│   │   │   ├── GoalCard.jsx      # Goal display with teams & categories
+│   │   │   ├── GoalForm.jsx      # Goal create/edit with team/category selection
+│   │   │   ├── Layout.jsx        # Main layout with sidebar & top nav
+│   │   │   ├── Sidebar.jsx       # Collapsible navigation with teams
+│   │   │   ├── ProtectedRoute.jsx # Authentication wrapper
+│   │   │   ├── TeamFormModal.jsx # Team create/edit modal
+│   │   │   ├── TeamTag.jsx       # Reusable team badge
+│   │   │   ├── CategoryFormModal.jsx # Category create/edit modal
+│   │   │   ├── CategoryTag.jsx   # Reusable category badge
+│   │   │   ├── NotificationPanel.jsx # Notification dropdown
+│   │   │   └── SearchAndFilterBar.jsx # Search, filter, sort controls
+│   │   ├── models/                # Redux slices
+│   │   │   ├── authSlice.js      # Authentication state
+│   │   │   ├── goalSlice.js      # Goals + filters + sorting
+│   │   │   ├── teamSlice.js      # Teams, members, invitations
+│   │   │   ├── categorySlice.js  # Categories
+│   │   │   └── notificationSlice.js # Notifications
+│   │   ├── store/                 # Redux store
 │   │   │   └── index.js
-│   │   ├── routes/              # Route configuration
+│   │   ├── routes/                # Route configuration
 │   │   │   └── index.jsx
-│   │   └── views/               # Page components
-│   │       └── GoalsView.jsx
+│   │   └── views/                 # Page components
+│   │       ├── GoalsView.jsx     # Main goals page (all/private/public)
+│   │       ├── TeamDetailsView.jsx # Team page with goals & members tabs
+│   │       ├── CategoryView.jsx  # Category goals view
+│   │       ├── ProfileView.jsx   # User profile & settings
+│   │       ├── InviteView.jsx    # Accept team invitation via link
+│   │       ├── LoginView.jsx     # Login page
+│   │       ├── SignupView.jsx    # Signup page
+│   │       └── NotFoundView.jsx  # 404 page
 │   ├── Dockerfile
 │   ├── package.json
 │   ├── vite.config.js
 │   └── tailwind.config.js
 ├── supabase/
-│   ├── config.toml              # Supabase configuration
-│   └── migrations/              # Database migrations
+│   ├── config.toml                # Supabase configuration
+│   └── migrations/                # Database migrations
 │       ├── 20250104000000_create_goals_table.sql
 │       ├── 20251105010103_add_auth.sql
-│       └── 20251105020000_add_is_public_to_goals.sql
+│       ├── 20251105020000_add_is_public_to_goals.sql
+│       ├── 20251105124500_add_teams_feature.sql
+│       └── 20251106000000_add_categories_feature.sql
 ├── .github/
 │   └── workflows/
-│       └── deploy-cloudrun.yml  # CI/CD pipeline
+│       └── deploy-cloudrun.yml    # CI/CD pipeline
 ├── docker-compose.yml
-├── Dockerfile.cloudrun          # Unified production container
-├── cloudbuild.yaml              # Cloud Build configuration
-├── run-local.sh                 # Local development startup
-├── run-production.sh            # Production mode locally
-└── deploy-cloudrun.sh           # Manual Cloud Run deployment
+├── Dockerfile.cloudrun            # Unified production container
+├── cloudbuild.yaml                # Cloud Build configuration
+├── run-local.sh                   # Local development startup
+├── run-production.sh              # Production mode locally
+└── deploy-cloudrun.sh             # Manual Cloud Run deployment
 ```
 
 ## Features
@@ -93,7 +126,18 @@ goal_tracker/
 - **Status Tracking**: Track goal status (Pending, In Progress, Completed)
 - **Target Dates**: Set target completion dates
 - **Public/Private Goals**: Share goals publicly or keep them private
-- **Team Assignment**: Assign goals to teams for collaborative tracking
+- **Team Assignment**: Assign goals to multiple teams for collaborative tracking
+- **Category Organization**: Organize goals with custom categories (name, color, icon)
+- **Advanced Search**: Full-text search across goal titles and descriptions
+- **Multi-Filter**: Filter by status, categories, target date ranges
+- **Smart Sorting**: Sort by target date, created date, title, or status (with null handling)
+
+### Categories & Organization
+- **Custom Categories**: Create categories with custom names, colors (hex), and icons
+- **Multi-Category Goals**: Assign multiple categories to a single goal
+- **Category Views**: View all goals within a specific category
+- **Color-Coded Badges**: Visual category badges on goal cards
+- **Unique Names**: Categories are unique per user
 
 ### Teams & Collaboration
 - **Team Creation**: Create hierarchical teams (up to 3 levels of nesting)
@@ -101,6 +145,8 @@ goal_tracker/
 - **Role Management**: Owner and member roles with appropriate permissions
 - **Team Goals**: Assign and track goals within team context
 - **Nested Teams**: Organize teams hierarchically (parent-child relationships)
+- **Color Themes**: Assign custom color themes to teams (10 predefined colors)
+- **Team Views**: Dedicated team pages with goals and members tabs
 
 ### Notifications
 - **Real-time Notifications**: Get notified of team invitations, member additions, and goal assignments
@@ -238,125 +284,167 @@ Frontend will be available at http://localhost:5173 (Vite dev server)
 
 ## API Endpoints
 
-### Goals
-- `GET /api/goals` - Get all goals for current user
-- `GET /api/goals/private` - Get private goals only
-- `GET /api/goals/public` - Get public goals only
+### Goals (20+ endpoints)
+- `GET /api/goals` - Get all goals with search, filter, sort
+  - Query params: `search`, `status[]`, `category_ids[]`, `target_date_from`, `target_date_to`, `sort_by`, `sort_order`
+- `GET /api/goals/public` - Get all public goals from all users
 - `GET /api/goals/{id}` - Get a specific goal
 - `POST /api/goals` - Create a new goal
 - `PUT /api/goals/{id}` - Update a goal
 - `DELETE /api/goals/{id}` - Delete a goal
+- `POST /api/goals/{id}/categories` - Assign goal to categories (batch)
+- `POST /api/goals/{id}/categories/{categoryId}` - Add single category
+- `DELETE /api/goals/{id}/categories/{categoryId}` - Remove category from goal
 
-### Teams
+### Categories (7 endpoints)
+- `GET /api/categories` - Get all categories for current user
+- `GET /api/categories/{id}` - Get category details
+- `GET /api/categories/{id}/goals` - Get all goals in a category
+- `POST /api/categories` - Create new category (name, color, icon)
+- `PUT /api/categories/{id}` - Update category
+- `DELETE /api/categories/{id}` - Delete category
+
+### Teams (25+ endpoints)
+**Teams:**
 - `GET /api/teams` - Get all teams for current user
 - `POST /api/teams` - Create a new team
 - `GET /api/teams/{id}` - Get team details
-- `PUT /api/teams/{id}` - Update team
-- `DELETE /api/teams/{id}` - Delete team
-- `GET /api/teams/{id}/members` - Get team members with user info
-- `POST /api/teams/{id}/members` - Add team member
-- `PUT /api/teams/{id}/members/{user_id}` - Update member role
-- `DELETE /api/teams/{id}/members/{user_id}` - Remove team member
-- `GET /api/teams/{id}/goals` - Get goals assigned to team
-- `POST /api/goals/{goal_id}/assign-teams` - Assign goal to teams
+- `PUT /api/teams/{id}` - Update team (owners only)
+- `DELETE /api/teams/{id}` - Delete team (owners only)
 
-### Invitations
-- `POST /api/teams/{id}/invite` - Send team invitation by email
-- `GET /api/teams/{id}/invitations` - Get all invitations for team
-- `GET /api/invitations` - Get pending invitations for current user
-- `POST /api/invitations/{id}/accept` - Accept team invitation
-- `POST /api/invitations/{id}/decline` - Decline team invitation
+**Team Members:**
+- `GET /api/teams/{id}/members` - Get team members with user info
+- `POST /api/teams/{id}/members` - Add team member (owners only)
+- `PUT /api/teams/{id}/members/{userId}` - Update member role
+- `DELETE /api/teams/{id}/members/{userId}` - Remove team member
+
+**Team Goals:**
+- `GET /api/teams/{id}/goals` - Get goals assigned to team
+- `POST /api/goals/{goalId}/teams` - Assign goal to teams (batch)
+- `DELETE /api/goals/{goalId}/teams/{teamId}` - Unassign goal from team
+
+**Invitations:**
+- `POST /api/teams/{id}/invite` - Send email invitation
+- `GET /api/teams/{id}/invitations` - Get team invitations
+- `GET /api/invitations` - Get user's pending invitations
+- `POST /api/invitations/{id}/accept` - Accept invitation
+- `POST /api/invitations/{id}/decline` - Decline invitation
 - `GET /api/invite/{code}` - Get invitation by shareable code
 - `POST /api/invite/{code}/join` - Join team via invite link
 
 ### Notifications
-- `GET /api/notifications` - Get notifications for current user
+- `GET /api/notifications` - Get notifications (with `?unread=true` filter)
 - `PUT /api/notifications/{id}/read` - Mark notification as read
 - `PUT /api/notifications/read-all` - Mark all notifications as read
 
 ### Authentication & Profile
 - Login/Signup handled by Supabase Auth client-side
-- JWT token passed in Authorization header for API requests
+- JWT token passed in `Authorization: Bearer <token>` header for all API requests
 
 ### Health Check
 - `GET /health` - Health check endpoint
-- `GET /` - API root
+- `GET /api/health` - API health check
 
 ## Database Schema
+
+The application uses 9 PostgreSQL tables with Row Level Security (RLS) policies:
 
 ### Goals Table
 | Column | Type | Description |
 |--------|------|-------------|
-| id | Integer | Primary key (auto-increment) |
-| title | String(200) | Goal title (required) |
-| description | Text | Goal description (optional) |
-| status | Enum | pending, in_progress, completed |
-| target_date | Timestamp | Target completion date (optional) |
-| is_public | Boolean | Public (true) or private (false) |
+| id | bigserial | Primary key |
 | user_id | UUID | Foreign key to auth.users |
-| created_at | Timestamp | Creation timestamp (auto) |
+| title | varchar(200) | Goal title (required) |
+| description | text | Goal description (optional) |
+| status | enum | pending, in_progress, completed |
+| target_date | timestamptz | Target completion date (optional) |
+| is_public | boolean | Public (true) or private (false), default: false |
+| scope | enum | private, public, team |
+| created_at | timestamptz | Creation timestamp (auto) |
+
+### Categories Table
+| Column | Type | Description |
+|--------|------|-------------|
+| id | bigserial | Primary key |
+| user_id | UUID | Foreign key to auth.users |
+| name | varchar(50) | Category name (unique per user) |
+| color | varchar(7) | Hex color code (e.g., #FF5733) |
+| icon | varchar(50) | Icon identifier |
+| created_at | timestamptz | Creation timestamp |
+
+### Goal Categories Table (Junction)
+| Column | Type | Description |
+|--------|------|-------------|
+| id | bigserial | Primary key |
+| goal_id | bigint | Foreign key to goals |
+| category_id | bigint | Foreign key to categories |
+| - | - | Unique constraint: (goal_id, category_id) |
 
 ### Teams Table
 | Column | Type | Description |
 |--------|------|-------------|
-| id | Integer | Primary key |
-| name | String(100) | Team name (required) |
-| description | Text | Team description (optional) |
-| color_theme | String(7) | Hex color code for UI |
-| parent_team_id | Integer | Parent team (nullable, for nesting) |
-| nesting_level | Integer | 0-2 (max 3 levels) |
+| id | bigserial | Primary key |
+| name | varchar(100) | Team name (required) |
+| description | text | Team description (optional) |
+| color_theme | varchar(7) | Hex color code for UI |
 | created_by | UUID | Team creator |
-| created_at | Timestamp | Creation timestamp |
+| parent_team_id | bigint | Parent team (nullable, for nesting) |
+| nesting_level | int | 0-2 (max 3 levels deep) |
+| created_at | timestamptz | Creation timestamp |
+| updated_at | timestamptz | Last update timestamp |
+| - | - | Unique constraint: (name, parent_team_id) |
 
 ### Team Members Table
 | Column | Type | Description |
 |--------|------|-------------|
-| id | Integer | Primary key |
-| team_id | Integer | Foreign key to teams |
+| id | bigserial | Primary key |
+| team_id | bigint | Foreign key to teams |
 | user_id | UUID | Foreign key to auth.users |
-| role | Enum | owner, member |
+| role | enum | owner, member |
 | invited_by | UUID | User who invited |
-| joined_at | Timestamp | Join timestamp |
+| joined_at | timestamptz | Join timestamp |
+| - | - | Unique constraint: (team_id, user_id) |
+
+### Goal Teams Table (Junction)
+| Column | Type | Description |
+|--------|------|-------------|
+| id | bigserial | Primary key |
+| goal_id | bigint | Foreign key to goals |
+| team_id | bigint | Foreign key to teams |
+| assigned_by | UUID | User who assigned |
+| assigned_at | timestamptz | Assignment timestamp |
+| - | - | Unique constraint: (goal_id, team_id) |
 
 ### Team Invitations Table
 | Column | Type | Description |
 |--------|------|-------------|
-| id | Integer | Primary key |
-| team_id | Integer | Foreign key to teams |
-| email | String(255) | Invitee email |
-| status | Enum | pending, accepted, declined, expired |
-| invite_code | String(32) | Unique shareable code |
+| id | bigserial | Primary key |
+| team_id | bigint | Foreign key to teams |
+| email | varchar(255) | Invitee email |
+| invite_code | varchar(50) | Unique shareable code |
 | invited_by | UUID | User who sent invite |
-| expires_at | Timestamp | Expiration timestamp |
-| created_at | Timestamp | Creation timestamp |
-
-### Goal Team Assignments Table
-| Column | Type | Description |
-|--------|------|-------------|
-| id | Integer | Primary key |
-| goal_id | Integer | Foreign key to goals |
-| team_id | Integer | Foreign key to teams |
-| assigned_by | UUID | User who assigned |
-| assigned_at | Timestamp | Assignment timestamp |
+| status | enum | pending, accepted, declined, expired |
+| created_at | timestamptz | Creation timestamp |
+| expires_at | timestamptz | Expiration timestamp (+7 days) |
 
 ### Notifications Table
 | Column | Type | Description |
 |--------|------|-------------|
-| id | Integer | Primary key |
+| id | bigserial | Primary key |
 | user_id | UUID | Foreign key to auth.users |
-| type | Enum | team_invitation, team_member_added, team_goal_assigned |
-| title | String(255) | Notification title |
-| message | Text | Notification message |
-| read | Boolean | Read status (default: false) |
-| related_id | Integer | Related entity ID |
-| created_at | Timestamp | Creation timestamp |
+| type | enum | team_invitation, team_member_added, team_member_removed, team_goal_assigned, team_goal_completed, team_deleted |
+| title | varchar(200) | Notification title |
+| message | text | Notification message |
+| related_id | bigint | Related entity ID (nullable) |
+| read | boolean | Read status (default: false) |
+| created_at | timestamptz | Creation timestamp |
 
-### User Roles
-Managed in `public.user_roles` table:
-- **admin**: Full access to all goals
-- **user**: Access to own goals only
-
-Row Level Security (RLS) policies enforce authorization at the database level for all tables.
+### Database Features
+- **Row Level Security (RLS)**: 20+ policies for secure data access
+- **Indexes**: 12 indexes for optimized queries
+- **Triggers**: Auto-add team owner, calculate nesting level, update timestamps
+- **Cascade Deletes**: Properly configured foreign key relationships
+- **Constraints**: Unique constraints on team names, category names, junction tables
 
 ## Deployment to Cloud Run
 

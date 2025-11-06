@@ -219,6 +219,7 @@ const TeamDetailsView = () => {
                       key={goal.id}
                       goal={goal}
                       teams={goal.teams || []}
+                      categories={goal.categories || []}
                       onEdit={handleEdit}
                       onDelete={handleDelete}
                       onStatusChange={handleStatusChange}

@@ -121,21 +121,25 @@ backend/
 │   ├── __init__.py
 │   ├── main.py                    # FastAPI app initialization, CORS, router registration
 │   ├── config.py                  # Environment variables and settings
+│   ├── auth.py                    # JWT authentication & user extraction utilities
 │   ├── supabase_client.py         # Supabase client initialization and dependency
 │   │
 │   ├── models/                    # Pydantic models (schemas) with CRUD methods
 │   │   ├── __init__.py
-│   │   └── goal.py                # Goal, GoalCreate, GoalUpdate, GoalStatus
+│   │   ├── goal.py                # Goal models with search, filter, sort capabilities
+│   │   ├── team.py                # Team, TeamMember, Invitation, Notification models
+│   │   └── category.py            # Category models with CRUD methods
 │   │
 │   └── routers/                   # API route handlers
 │       ├── __init__.py
 │       ├── health.py              # Health check endpoints
-│       └── goals.py               # Goal CRUD endpoints
+│       ├── goals.py               # Goal CRUD + category assignment (20+ endpoints)
+│       ├── teams.py               # Team management, invites, notifications (25+ endpoints)
+│       └── categories.py          # Category CRUD + goal associations (7 endpoints)
 │
-├── tests/                         # Test files (mirror app structure)
-│   ├── __init__.py
-│   ├── test_goals.py
-│   └── test_health.py
+├── tests/                         # Test files
+│   ├── test_integration.py        # 20+ integration tests with visual output
+│   └── run_tests.sh               # Test runner script
 │
 ├── static/                        # Frontend build files (production only)
 ├── .env                           # Environment variables (not in version control)
@@ -150,10 +154,16 @@ backend/
 |------|---------|
 | `app/main.py` | Application entry point, middleware setup, router registration |
 | `app/config.py` | Centralized configuration and environment variables |
+| `app/auth.py` | JWT token verification and user extraction from tokens |
 | `app/supabase_client.py` | Supabase client singleton and dependency injection |
-| `app/models/goal.py` | Goal data models with validation and database operations |
-| `app/routers/goals.py` | Goal API endpoints (GET, POST, PUT, DELETE) |
+| `app/models/goal.py` | Goal models with search, filter, sort, and CRUD operations |
+| `app/models/team.py` | Team, TeamMember, Invitation, Notification models with operations |
+| `app/models/category.py` | Category models with validation and database operations |
+| `app/routers/goals.py` | Goal API endpoints with category assignment (20+ endpoints) |
+| `app/routers/teams.py` | Team management, invitations, notifications (25+ endpoints) |
+| `app/routers/categories.py` | Category CRUD and goal associations (7 endpoints) |
 | `app/routers/health.py` | System health and status endpoints |
+| `tests/test_integration.py` | Comprehensive integration tests (20+ tests) |
 
 ---
 
@@ -172,17 +182,76 @@ FastAPI automatically generates interactive API documentation:
 - **ReDoc**: http://localhost:8000/redoc (clean, readable documentation)
 - **OpenAPI Schema**: http://localhost:8000/openapi.json (raw OpenAPI 3 specification)
 
-### Endpoints Summary
+### Endpoints Summary (50+ total endpoints)
 
-| Method | Endpoint | Description | Request Body | Response |
-|--------|----------|-------------|--------------|----------|
-| GET | `/api/goals` | List all goals | - | `Goal[]` |
-| GET | `/api/goals/{id}` | Get single goal | - | `Goal` |
-| POST | `/api/goals` | Create new goal | `GoalCreate` | `Goal` |
-| PUT | `/api/goals/{id}` | Update goal | `GoalUpdate` | `Goal` |
-| DELETE | `/api/goals/{id}` | Delete goal | - | 204 No Content |
-| GET | `/health` | Health check | - | `{"status": "healthy"}` |
-| GET | `/api/health/database` | Database health | - | `{"status": "ok", ...}` |
+#### Goals API (20+ endpoints)
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/goals` | List user goals with search, filter, sort |
+| GET | `/api/goals/public` | List all public goals from all users |
+| GET | `/api/goals/{id}` | Get single goal |
+| POST | `/api/goals` | Create new goal |
+| PUT | `/api/goals/{id}` | Update goal |
+| DELETE | `/api/goals/{id}` | Delete goal |
+| POST | `/api/goals/{id}/categories` | Assign goal to categories (batch) |
+| POST | `/api/goals/{id}/categories/{categoryId}` | Add single category |
+| DELETE | `/api/goals/{id}/categories/{categoryId}` | Remove category |
+
+**Query Parameters for `/api/goals`:**
+- `search` - Text search in title/description
+- `status[]` - Filter by status (multi-select)
+- `category_ids[]` - Filter by categories (multi-select)
+- `target_date_from` - Filter start date
+- `target_date_to` - Filter end date
+- `sort_by` - Sort field (target_date, created_at, title, status)
+- `sort_order` - Sort direction (asc, desc)
+
+#### Categories API (7 endpoints)
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/api/categories` | List user categories |
+| GET | `/api/categories/{id}` | Get category |
+| GET | `/api/categories/{id}/goals` | Get goals in category |
+| POST | `/api/categories` | Create category |
+| PUT | `/api/categories/{id}` | Update category |
+| DELETE | `/api/categories/{id}` | Delete category |
+
+#### Teams API (25+ endpoints)
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| **Teams** | | |
+| GET | `/api/teams` | List user's teams |
+| POST | `/api/teams` | Create team |
+| GET | `/api/teams/{id}` | Get team details |
+| PUT | `/api/teams/{id}` | Update team (owners only) |
+| DELETE | `/api/teams/{id}` | Delete team (owners only) |
+| **Members** | | |
+| GET | `/api/teams/{id}/members` | List members with user info |
+| POST | `/api/teams/{id}/members` | Add member (owners only) |
+| PUT | `/api/teams/{id}/members/{userId}` | Update member role |
+| DELETE | `/api/teams/{id}/members/{userId}` | Remove member |
+| **Team Goals** | | |
+| GET | `/api/teams/{id}/goals` | Get team's goals |
+| POST | `/api/goals/{goalId}/teams` | Assign goal to teams (batch) |
+| DELETE | `/api/goals/{goalId}/teams/{teamId}` | Unassign goal |
+| **Invitations** | | |
+| POST | `/api/teams/{id}/invite` | Send email invitation |
+| GET | `/api/teams/{id}/invitations` | List team invitations |
+| GET | `/api/invitations` | Get user's pending invitations |
+| POST | `/api/invitations/{id}/accept` | Accept invitation |
+| POST | `/api/invitations/{id}/decline` | Decline invitation |
+| GET | `/api/invite/{code}` | Get invitation by code |
+| POST | `/api/invite/{code}/join` | Join via invite link |
+| **Notifications** | | |
+| GET | `/api/notifications` | Get user notifications |
+| PUT | `/api/notifications/{id}/read` | Mark notification as read |
+| PUT | `/api/notifications/read-all` | Mark all as read |
+
+#### Health API
+| Method | Endpoint | Description |
+|--------|----------|-------------|
+| GET | `/health` | Health check |
+| GET | `/api/health` | API health check |
 
 ### Data Models
 
@@ -282,28 +351,44 @@ Managed via `app/config.py`. Required variables:
 
 ### Database Schema
 
-**Table: `goals`**
+The backend uses **9 PostgreSQL tables** with Row Level Security (RLS):
 
-| Column | Type | Constraints | Description |
-|--------|------|-------------|-------------|
-| `id` | integer | PRIMARY KEY, AUTO INCREMENT | Unique identifier |
-| `title` | varchar(200) | NOT NULL | Goal title |
-| `description` | text | NULLABLE | Detailed description |
-| `status` | varchar(50) | NOT NULL, DEFAULT 'pending' | Current status |
-| `target_date` | timestamp | NULLABLE | Target completion date |
-| `created_at` | timestamp | NOT NULL, DEFAULT now() | Creation timestamp |
+#### Main Tables
 
-**Create table SQL:**
-```sql
-CREATE TABLE goals (
-  id SERIAL PRIMARY KEY,
-  title VARCHAR(200) NOT NULL,
-  description TEXT,
-  status VARCHAR(50) NOT NULL DEFAULT 'pending',
-  target_date TIMESTAMP WITH TIME ZONE,
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT now()
-);
-```
+**`goals`** - User goals with search, filter, sort capabilities
+- `id`, `user_id`, `title`, `description`, `status`, `target_date`, `is_public`, `scope`, `created_at`
+
+**`categories`** - User-defined categories for organizing goals
+- `id`, `user_id`, `name`, `color`, `icon`, `created_at`
+
+**`goal_categories`** - Junction table for many-to-many goal-category relationships
+- `id`, `goal_id`, `category_id`
+
+**`teams`** - Collaborative teams with hierarchical nesting (up to 3 levels)
+- `id`, `name`, `description`, `color_theme`, `created_by`, `parent_team_id`, `nesting_level`, `created_at`, `updated_at`
+
+**`team_members`** - Team membership with roles (owner, member)
+- `id`, `team_id`, `user_id`, `role`, `invited_by`, `joined_at`
+
+**`goal_teams`** - Junction table for goal-team assignments
+- `id`, `goal_id`, `team_id`, `assigned_by`, `assigned_at`
+
+**`team_invitations`** - Email invitations with shareable codes
+- `id`, `team_id`, `email`, `invite_code`, `invited_by`, `status`, `created_at`, `expires_at`
+
+**`notifications`** - User notifications for team activities
+- `id`, `user_id`, `type`, `title`, `message`, `related_id`, `read`, `created_at`
+
+**`auth.users`** - Supabase managed authentication table
+
+#### Database Features
+- **Row Level Security (RLS)**: 20+ policies enforce user-level access control
+- **Indexes**: 12 indexes for optimized queries (e.g., user_id, team_id, goal_id)
+- **Triggers**: Auto-add team owner, calculate nesting levels, update timestamps
+- **Constraints**: Unique constraints on names, junction tables
+- **Cascade Deletes**: Properly configured ON DELETE CASCADE for cleanup
+
+See migration files in `supabase/migrations/` for complete schema definitions.
 
 ### Dependency Management
 
