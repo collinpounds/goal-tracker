@@ -30,11 +30,8 @@ const TeamDetailsView = () => {
   const goals = teamGoals[teamId] || [];
   const invitations = teamInvitations[teamId] || [];
 
-  // Use shared goal handlers with refresh callback
-  const { handleEdit, handleDelete, handleStatusChange } = useGoalHandlers(() => {
-    // Refresh team goals after any goal operation
-    dispatch(fetchTeamGoals(parseInt(teamId)));
-  });
+  // Use shared goal handlers - no refresh needed, Redux handles optimistic updates
+  const { handleEdit, handleDelete, handleStatusChange } = useGoalHandlers();
 
   useEffect(() => {
     if (teamId) {

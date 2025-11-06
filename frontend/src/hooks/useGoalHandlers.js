@@ -1,5 +1,5 @@
 import { useDispatch } from 'react-redux';
-import { setEditingGoal, updateGoal, deleteGoal } from '../models/goalSlice';
+import { setEditingGoal, updateGoal, deleteGoal, fetchGoals } from '../models/goalSlice';
 
 /**
  * Custom hook that provides handlers for goal card operations
@@ -19,16 +19,21 @@ export const useGoalHandlers = (onRefresh) => {
     }
     await dispatch(deleteGoal(goalId));
 
-    // Call refresh callback if provided
+    // Always refresh main goals list
+    dispatch(fetchGoals());
+
+    // Call refresh callback if provided (for team-specific refresh)
     if (onRefresh) {
       onRefresh();
     }
   };
 
   const handleStatusChange = async (goalId, status) => {
+    // Update the goal - Redux will handle optimistic update
     await dispatch(updateGoal({ id: goalId, goalData: { status } }));
 
-    // Call refresh callback if provided
+    // Only call the refresh callback if provided (for team-specific refresh)
+    // We don't need to fetchGoals() because Redux already updated the state optimistically
     if (onRefresh) {
       onRefresh();
     }

@@ -1,5 +1,6 @@
 import { createSlice, createAsyncThunk } from '@reduxjs/toolkit';
 import { teamService, invitationService } from '../api/teams';
+import { updateGoal, deleteGoal } from './goalSlice';
 
 // =====================================================
 // ASYNC THUNKS - TEAMS
@@ -452,6 +453,27 @@ const teamSlice = createSlice({
       .addCase(declineInvitation.fulfilled, (state, action) => {
         const invitationId = action.payload;
         state.pendingInvitations = state.pendingInvitations.filter((inv) => inv.id !== invitationId);
+      })
+
+      // =====================================================
+      // LISTEN TO GOAL UPDATES (from goalSlice)
+      // =====================================================
+      .addCase(updateGoal.fulfilled, (state, action) => {
+        // Update the goal in all team goals lists that contain it
+        const updatedGoal = action.payload;
+        Object.keys(state.teamGoals).forEach((teamId) => {
+          const goalIndex = state.teamGoals[teamId].findIndex((g) => g.id === updatedGoal.id);
+          if (goalIndex !== -1) {
+            state.teamGoals[teamId][goalIndex] = updatedGoal;
+          }
+        });
+      })
+      .addCase(deleteGoal.fulfilled, (state, action) => {
+        // Remove the goal from all team goals lists
+        const deletedGoalId = action.payload;
+        Object.keys(state.teamGoals).forEach((teamId) => {
+          state.teamGoals[teamId] = state.teamGoals[teamId].filter((g) => g.id !== deletedGoalId);
+        });
       });
   },
 });

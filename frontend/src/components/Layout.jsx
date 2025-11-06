@@ -1,15 +1,16 @@
-import { Outlet } from 'react-router-dom';
+import { Outlet, useLocation } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
 import Sidebar from './Sidebar';
 import NotificationPanel from './NotificationPanel';
 import TeamFormModal from './TeamFormModal';
 import GoalForm from './GoalForm';
-import { setShowForm, setEditingGoal, createGoal, updateGoal } from '../models/goalSlice';
-import { fetchTeams, assignGoalToTeams } from '../models/teamSlice';
+import { setShowForm, setEditingGoal, createGoal, updateGoal, fetchGoals } from '../models/goalSlice';
+import { fetchTeams, assignGoalToTeams, fetchTeamGoals } from '../models/teamSlice';
 import { useEffect } from 'react';
 
 const Layout = () => {
   const dispatch = useDispatch();
+  const location = useLocation();
   const { showForm, editingGoal } = useSelector((state) => state.goals);
   const { teams } = useSelector((state) => state.teams);
 
@@ -30,6 +31,15 @@ const Layout = () => {
       const goalId = result.payload.id;
       await dispatch(assignGoalToTeams({ goalId, teamIds: team_ids }));
     }
+
+    // Refresh goals list
+    dispatch(fetchGoals());
+
+    // If on a team page, refresh team goals
+    const teamIdMatch = location.pathname.match(/\/teams\/(\d+)/);
+    if (teamIdMatch) {
+      dispatch(fetchTeamGoals(parseInt(teamIdMatch[1])));
+    }
   };
 
   const handleUpdateGoal = async (goalData) => {
@@ -39,6 +49,15 @@ const Layout = () => {
 
     if (result.payload && team_ids && team_ids.length > 0) {
       await dispatch(assignGoalToTeams({ goalId: editingGoal.id, teamIds: team_ids }));
+    }
+
+    // Refresh goals list
+    dispatch(fetchGoals());
+
+    // If on a team page, refresh team goals
+    const teamIdMatch = location.pathname.match(/\/teams\/(\d+)/);
+    if (teamIdMatch) {
+      dispatch(fetchTeamGoals(parseInt(teamIdMatch[1])));
     }
   };
 
