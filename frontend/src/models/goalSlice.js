@@ -4,9 +4,9 @@ import { goalService } from '../api/goals';
 // Async thunks (Controllers)
 export const fetchGoals = createAsyncThunk(
   'goals/fetchGoals',
-  async (_, { rejectWithValue }) => {
+  async (params = {}, { rejectWithValue }) => {
     try {
-      const data = await goalService.getAllGoals();
+      const data = await goalService.getAllGoals(params);
       return data;
     } catch (error) {
       return rejectWithValue(error.message || 'Failed to fetch goals');
@@ -70,6 +70,16 @@ const initialState = {
   editingGoal: null,
   showForm: false,
   activeTab: 'my-goals',
+  // Filter and sort state
+  filters: {
+    search: '',
+    status: [],
+    category_ids: [],
+    target_date_from: null,
+    target_date_to: null,
+    sort_by: 'target_date',
+    sort_order: 'asc',
+  },
 };
 
 const goalSlice = createSlice({
@@ -91,6 +101,36 @@ const goalSlice = createSlice({
     },
     setActiveTab: (state, action) => {
       state.activeTab = action.payload;
+    },
+    // Filter actions
+    setFilters: (state, action) => {
+      state.filters = { ...state.filters, ...action.payload };
+    },
+    setSearch: (state, action) => {
+      state.filters.search = action.payload;
+    },
+    setStatusFilter: (state, action) => {
+      state.filters.status = action.payload;
+    },
+    setCategoryFilter: (state, action) => {
+      state.filters.category_ids = action.payload;
+    },
+    setSortBy: (state, action) => {
+      state.filters.sort_by = action.payload;
+    },
+    setSortOrder: (state, action) => {
+      state.filters.sort_order = action.payload;
+    },
+    clearFilters: (state) => {
+      state.filters = {
+        search: '',
+        status: [],
+        category_ids: [],
+        target_date_from: null,
+        target_date_to: null,
+        sort_by: 'target_date',
+        sort_order: 'asc',
+      };
     },
   },
   extraReducers: (builder) => {
@@ -170,6 +210,18 @@ const goalSlice = createSlice({
   },
 });
 
-export const { setEditingGoal, setShowForm, clearError, setActiveTab } = goalSlice.actions;
+export const {
+  setEditingGoal,
+  setShowForm,
+  clearError,
+  setActiveTab,
+  setFilters,
+  setSearch,
+  setStatusFilter,
+  setCategoryFilter,
+  setSortBy,
+  setSortOrder,
+  clearFilters,
+} = goalSlice.actions;
 
 export default goalSlice.reducer;

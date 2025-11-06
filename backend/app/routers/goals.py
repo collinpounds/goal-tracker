@@ -1,9 +1,10 @@
 """
 Goals API router using model CRUD methods.
 """
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from supabase import Client
-from typing import List
+from typing import List, Optional
+from datetime import datetime
 
 from ..models.goal import Goal, GoalCreate, GoalUpdate
 from ..supabase_client import get_supabase
@@ -14,19 +15,41 @@ router = APIRouter()
 
 @router.get(
     "/goals",
-    summary="List all goals for authenticated user",
-    response_description="A list of user's goals with team information ordered by creation date (newest first)",
+    summary="List all goals for authenticated user with search, filter, and sort",
+    response_description="A list of user's goals with team and category information",
 )
 async def read_goals(
+    search: Optional[str] = Query(None, description="Search in title and description"),
+    status: Optional[List[str]] = Query(None, description="Filter by status (pending, in_progress, completed)"),
+    category_ids: Optional[List[int]] = Query(None, description="Filter by category IDs"),
+    target_date_from: Optional[datetime] = Query(None, description="Filter by target date from (ISO 8601)"),
+    target_date_to: Optional[datetime] = Query(None, description="Filter by target date to (ISO 8601)"),
+    sort_by: str = Query("target_date", description="Field to sort by (target_date, created_at, title, status)"),
+    sort_order: str = Query("asc", description="Sort order (asc or desc)"),
     supabase: Client = Depends(get_supabase),
     user_id: str = Depends(get_current_user_id)
 ):
     """
-    Retrieve all goals for the authenticated user with team information.
+    Retrieve all goals for the authenticated user with team and category information.
 
-    Returns a list of the user's goals ordered by creation date in descending order (newest first).
-    Each goal includes a 'teams' array with team details.
-    The list will be empty if the user has no goals.
+    Supports powerful filtering, searching, and sorting capabilities.
+
+    **Query Parameters:**
+    - **search**: Text search in title and description (case-insensitive)
+    - **status**: Filter by one or more status values (pending, in_progress, completed)
+    - **category_ids**: Filter by one or more category IDs
+    - **target_date_from**: Filter goals with target_date >= this date
+    - **target_date_to**: Filter goals with target_date <= this date
+    - **sort_by**: Field to sort by (default: target_date)
+      - target_date: Sort by target date (nulls first for asc, last for desc)
+      - created_at: Sort by creation date
+      - title: Sort alphabetically by title
+      - status: Sort by status
+    - **sort_order**: Sort direction (asc or desc, default: asc)
+
+    **Default Behavior:**
+    - Goals are sorted by target_date in ascending order (soonest first)
+    - Goals with null target_date appear first
 
     **Authentication Required:** Bearer token must be provided in Authorization header.
 
@@ -43,22 +66,25 @@ async def read_goals(
         "created_at": "2025-01-15T10:30:00Z",
         "teams": [
           {"id": 1, "name": "Backend Team", "color_theme": "#3B82F6"}
+        ],
+        "categories": [
+          {"id": 1, "name": "Work", "color": "#3B82F6", "icon": "briefcase"}
         ]
-      },
-      {
-        "id": 2,
-        "title": "Build a REST API",
-        "description": null,
-        "status": "pending",
-        "target_date": null,
-        "user_id": "550e8400-e29b-41d4-a716-446655440000",
-        "created_at": "2025-01-14T09:20:00Z",
-        "teams": []
       }
     ]
     ```
     """
-    goals = await Goal.get_all(supabase, user_id)
+    goals = await Goal.get_all(
+        supabase,
+        user_id,
+        search=search,
+        status=status,
+        category_ids=category_ids,
+        target_date_from=target_date_from,
+        target_date_to=target_date_to,
+        sort_by=sort_by,
+        sort_order=sort_order
+    )
     return goals
 
 
@@ -348,4 +374,98 @@ async def delete_goal(
         raise HTTPException(status_code=404, detail="Goal not found")
 
     await goal.delete(supabase, user_id)
+    return None
+
+
+@router.post(
+    "/goals/{goal_id}/categories/{category_id}",
+    status_code=201,
+    summary="Add a category to a goal",
+    response_description="Category added to goal successfully"
+)
+async def add_category_to_goal(
+    goal_id: int,
+    category_id: int,
+    supabase: Client = Depends(get_supabase),
+    user_id: str = Depends(get_current_user_id)
+):
+    """
+    Add a category to a goal.
+
+    **Authentication Required:** Bearer token must be provided in Authorization header.
+
+    **Path Parameters:**
+    - **goal_id**: The unique identifier of the goal
+    - **category_id**: The unique identifier of the category to add
+
+    **Returns:**
+    - 201 Created on success
+    - 404 if goal or category not found or doesn't belong to user
+    - 400 if category already added to goal
+    """
+    # Verify goal exists and belongs to user
+    goal = await Goal.get_by_id(supabase, goal_id, user_id)
+    if goal is None:
+        raise HTTPException(status_code=404, detail="Goal not found")
+
+    # Verify category exists and belongs to user
+    from ..models.category import Category
+    category = await Category.get_by_id(supabase, category_id, user_id)
+    if category is None:
+        raise HTTPException(status_code=404, detail="Category not found")
+
+    # Add the association
+    try:
+        response = supabase.table("goal_categories").insert({
+            "goal_id": goal_id,
+            "category_id": category_id
+        }).execute()
+
+        return {"message": "Category added to goal successfully"}
+    except Exception as e:
+        error_msg = str(e)
+        if "goal_categories_unique" in error_msg or "duplicate" in error_msg.lower():
+            raise HTTPException(status_code=400, detail="Category already added to this goal")
+        raise HTTPException(status_code=400, detail=f"Failed to add category: {error_msg}")
+
+
+@router.delete(
+    "/goals/{goal_id}/categories/{category_id}",
+    status_code=204,
+    summary="Remove a category from a goal",
+    response_description="Category removed from goal successfully"
+)
+async def remove_category_from_goal(
+    goal_id: int,
+    category_id: int,
+    supabase: Client = Depends(get_supabase),
+    user_id: str = Depends(get_current_user_id)
+):
+    """
+    Remove a category from a goal.
+
+    **Authentication Required:** Bearer token must be provided in Authorization header.
+
+    **Path Parameters:**
+    - **goal_id**: The unique identifier of the goal
+    - **category_id**: The unique identifier of the category to remove
+
+    **Returns:**
+    - 204 No Content on success
+    - 404 if goal or category not found or doesn't belong to user
+    """
+    # Verify goal exists and belongs to user
+    goal = await Goal.get_by_id(supabase, goal_id, user_id)
+    if goal is None:
+        raise HTTPException(status_code=404, detail="Goal not found")
+
+    # Verify category exists and belongs to user
+    from ..models.category import Category
+    category = await Category.get_by_id(supabase, category_id, user_id)
+    if category is None:
+        raise HTTPException(status_code=404, detail="Category not found")
+
+    # Remove the association
+    supabase.table("goal_categories").delete().eq("goal_id", goal_id).eq("category_id", category_id).execute()
+
     return None

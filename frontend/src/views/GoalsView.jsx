@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useCallback } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { useParams } from 'react-router-dom';
 import {
@@ -9,13 +9,15 @@ import {
   setShowForm,
 } from '../models/goalSlice';
 import { fetchTeams, assignGoalToTeams } from '../models/teamSlice';
+import { fetchCategories } from '../models/categorySlice';
 import GoalCard from '../components/GoalCard';
 import GoalForm from '../components/GoalForm';
+import SearchAndFilterBar from '../components/SearchAndFilterBar';
 import { useGoalHandlers } from '../hooks/useGoalHandlers';
 
 function GoalsView({ view = 'all' }) {
   const dispatch = useDispatch();
-  const { goals, publicGoals, loading, error, editingGoal, showForm } = useSelector((state) => state.goals);
+  const { goals, publicGoals, loading, error, editingGoal, showForm, filters } = useSelector((state) => state.goals);
   const { teams } = useSelector((state) => state.teams);
 
   // Use shared goal handlers hook
@@ -37,15 +39,21 @@ function GoalsView({ view = 'all' }) {
     title = 'All Goals';
   }
 
+  // Fetch goals with filters
+  const fetchGoalsWithFilters = useCallback(() => {
+    dispatch(fetchGoals(filters));
+  }, [dispatch, filters]);
+
   useEffect(() => {
-    dispatch(fetchGoals());
+    fetchGoalsWithFilters();
     dispatch(fetchTeams());
+    dispatch(fetchCategories());
 
     // Fetch public goals if we're on public view
     if (view === 'public' && publicGoals.length === 0) {
       dispatch(fetchPublicGoals());
     }
-  }, [dispatch, view]);
+  }, [dispatch, view, fetchGoalsWithFilters]);
 
   const handleCreateGoal = async (goalData) => {
     const { team_ids, ...goalDataWithoutTeams } = goalData;
@@ -59,7 +67,7 @@ function GoalsView({ view = 'all' }) {
       await dispatch(assignGoalToTeams({ goalId, teamIds: team_ids }));
 
       // Refresh goals to get updated team assignments
-      dispatch(fetchGoals());
+      fetchGoalsWithFilters();
     }
   };
 
@@ -74,7 +82,7 @@ function GoalsView({ view = 'all' }) {
       await dispatch(assignGoalToTeams({ goalId: editingGoal.id, teamIds: team_ids }));
 
       // Refresh goals to get updated team assignments
-      dispatch(fetchGoals());
+      fetchGoalsWithFilters();
     }
   };
 
@@ -105,6 +113,11 @@ function GoalsView({ view = 'all' }) {
           {view === 'all' && 'All your goals in one place'}
         </p>
       </div>
+
+      {/* Search and Filter Bar (only for 'all' view) */}
+      {view === 'all' && !isReadOnly && (
+        <SearchAndFilterBar onFilterChange={fetchGoalsWithFilters} />
+      )}
 
       {/* Error Message */}
       {error && (

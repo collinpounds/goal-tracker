@@ -3,6 +3,7 @@ import goalReducer from '../models/goalSlice';
 import authReducer from '../models/authSlice';
 import teamReducer from '../models/teamSlice';
 import notificationReducer from '../models/notificationSlice';
+import categoryReducer from '../models/categorySlice';
 
 export const store = configureStore({
   reducer: {
@@ -10,6 +11,7 @@ export const store = configureStore({
     auth: authReducer,
     teams: teamReducer,
     notifications: notificationReducer,
+    categories: categoryReducer,
   },
   middleware: (getDefaultMiddleware) =>
     getDefaultMiddleware({

@@ -440,6 +440,215 @@ Environment files:
 6. **Testing Auth**: Use Supabase Studio to manage test users and roles
 7. **CORS**: Configured for `localhost:*` in development; production uses environment-specific origins
 
+## State Management & Optimistic Updates
+
+This application uses **optimistic updates** throughout the UI to provide instant feedback without waiting for server responses. This creates a smooth, responsive user experience.
+
+### What are Optimistic Updates?
+
+Optimistic updates mean the UI updates immediately when a user takes an action (like changing a goal's status), assuming the server request will succeed. The actual server response happens in the background, and Redux automatically handles the state synchronization.
+
+**Benefits:**
+- Instant UI feedback - no loading spinners or delays
+- Only the affected component re-renders (no flash/refresh of entire page)
+- Automatic rollback if server request fails (via Redux error handling)
+- Consistent state across all views (goals page, team page, etc.)
+
+### Implementation Pattern
+
+#### 1. Redux Slices Handle State Updates
+
+All CRUD operations use Redux Toolkit's `createAsyncThunk` which automatically handles three states:
+- `pending` - Request started
+- `fulfilled` - Request succeeded (updates state)
+- `rejected` - Request failed (rollback or error handling)
+
+Example from [goalSlice.js](frontend/src/models/goalSlice.js):
+
+```javascript
+export const updateGoal = createAsyncThunk('goals/updateGoal', async ({ id, goalData }) => {
+  const response = await updateGoalAPI(id, goalData);
+  return response.data;
+});
+
+// Redux automatically updates state when fulfilled
+extraReducers: (builder) => {
+  builder.addCase(updateGoal.fulfilled, (state, action) => {
+    const index = state.goals.findIndex((g) => g.id === action.payload.id);
+    if (index !== -1) {
+      state.goals[index] = action.payload; // Optimistic update
+    }
+  });
+}
+```
+
+#### 2. Cross-Slice Listeners for Consistency
+
+The `teamSlice` listens to actions from `goalSlice` to keep team goals synchronized:
+
+```javascript
+// In teamSlice.js
+extraReducers: (builder) => {
+  // Listen to goal updates from goalSlice
+  builder.addCase(updateGoal.fulfilled, (state, action) => {
+    const updatedGoal = action.payload;
+    // Update the goal in all team goals lists that contain it
+    Object.keys(state.teamGoals).forEach((teamId) => {
+      const goalIndex = state.teamGoals[teamId].findIndex((g) => g.id === updatedGoal.id);
+      if (goalIndex !== -1) {
+        state.teamGoals[teamId][goalIndex] = updatedGoal;
+      }
+    });
+  });
+
+  // Listen to goal deletions from goalSlice
+  builder.addCase(deleteGoal.fulfilled, (state, action) => {
+    const deletedGoalId = action.payload;
+    // Remove the goal from all team goals lists
+    Object.keys(state.teamGoals).forEach((teamId) => {
+      state.teamGoals[teamId] = state.teamGoals[teamId].filter((g) => g.id !== deletedGoalId);
+    });
+  });
+}
+```
+
+This ensures that when a goal is updated or deleted from **any** view (All Goals, Team Goals, etc.), the change is reflected **everywhere** instantly.
+
+#### 3. Custom Hooks for Code Reuse
+
+The `useGoalHandlers` hook ([useGoalHandlers.js](frontend/src/hooks/useGoalHandlers.js)) provides consistent goal operations across all components:
+
+```javascript
+export const useGoalHandlers = () => {
+  const dispatch = useDispatch();
+
+  const handleDelete = async (goalId) => {
+    if (!window.confirm('Are you sure you want to delete this goal?')) {
+      return;
+    }
+    // Delete the goal - Redux will handle optimistic removal
+    await dispatch(deleteGoal(goalId));
+
+    // Redux automatically removes the goal from state:
+    // - goalSlice.deleteGoal.fulfilled removes it from goals array
+    // - teamSlice listens to deleteGoal.fulfilled and removes it from all team goals
+  };
+
+  const handleStatusChange = async (goalId, status) => {
+    // Update the goal - Redux will handle optimistic update
+    await dispatch(updateGoal({ id: goalId, goalData: { status } }));
+
+    // Redux automatically updates the goal in state:
+    // - goalSlice.updateGoal.fulfilled updates it in goals array
+    // - teamSlice listens to updateGoal.fulfilled and updates it in all team goals
+  };
+
+  return { handleEdit, handleDelete, handleStatusChange };
+};
+```
+
+**Key Point**: Notice there are **NO** manual `fetchGoals()` calls after operations. Redux handles all state updates automatically.
+
+### When to Use fetchGoals()
+
+**DO NOT** call `fetchGoals()` after:
+- Creating a goal (unless assigning to teams - see below)
+- Updating a goal
+- Deleting a goal
+- Changing goal status
+
+These operations use optimistic updates via Redux reducers.
+
+**DO** call `fetchGoals()` or `fetchTeamGoals()` when:
+- Component first mounts (initial data load)
+- Assigning goals to teams (team assignments are a separate operation)
+- User explicitly refreshes the page
+
+Example from [Layout.jsx](frontend/src/components/Layout.jsx):
+
+```javascript
+const handleCreateGoal = async (goalData) => {
+  const { team_ids, ...goalDataWithoutTeams } = goalData;
+
+  const result = await dispatch(createGoal(goalDataWithoutTeams));
+
+  if (result.payload && team_ids && team_ids.length > 0) {
+    const goalId = result.payload.id;
+    await dispatch(assignGoalToTeams({ goalId, teamIds: team_ids }));
+
+    // Only refresh team goals if we assigned to teams
+    const teamIdMatch = location.pathname.match(/\/teams\/(\d+)/);
+    if (teamIdMatch) {
+      dispatch(fetchTeamGoals(parseInt(teamIdMatch[1])));
+    }
+  }
+
+  // Redux already added the goal to state via createGoal.fulfilled
+  // No need to fetchGoals() - it would cause unnecessary re-renders
+};
+```
+
+### Best Practices for Future Features
+
+When adding new features or components:
+
+1. **Use Redux Thunks**: Create async thunks for all API operations
+2. **Handle in extraReducers**: Update state in the `fulfilled` case
+3. **Add Cross-Slice Listeners**: If the data appears in multiple slices, add listeners
+4. **Use Custom Hooks**: Share common operations via hooks like `useGoalHandlers`
+5. **Avoid Manual Fetches**: Trust Redux to update state automatically
+6. **Only Fetch on Mount**: Load initial data when component mounts, not after every operation
+
+### Example: Adding a New Feature with Optimistic Updates
+
+If you're adding a new feature like "Comments on Goals":
+
+1. **Create the async thunk** in `goalSlice.js`:
+```javascript
+export const addComment = createAsyncThunk('goals/addComment', async ({ goalId, comment }) => {
+  const response = await addCommentAPI(goalId, comment);
+  return response.data;
+});
+```
+
+2. **Handle in reducer**:
+```javascript
+builder.addCase(addComment.fulfilled, (state, action) => {
+  const { goalId, comment } = action.payload;
+  const goal = state.goals.find(g => g.id === goalId);
+  if (goal) {
+    goal.comments = [...(goal.comments || []), comment];
+  }
+});
+```
+
+3. **Add cross-slice listener** if needed in `teamSlice.js`:
+```javascript
+builder.addCase(addComment.fulfilled, (state, action) => {
+  const { goalId, comment } = action.payload;
+  Object.keys(state.teamGoals).forEach((teamId) => {
+    const goal = state.teamGoals[teamId].find(g => g.id === goalId);
+    if (goal) {
+      goal.comments = [...(goal.comments || []), comment];
+    }
+  });
+});
+```
+
+4. **Use in component**:
+```javascript
+const handleAddComment = async (goalId, comment) => {
+  await dispatch(addComment({ goalId, comment }));
+  // That's it! Redux handles the rest. No manual fetch needed.
+};
+```
+
+This pattern ensures:
+- Instant UI updates
+- Consistency across all views
+- Minimal re-renders (only affected components update)
+- Clean, maintainable code
+
 ## Troubleshooting
 
 ### Supabase Connection Issues

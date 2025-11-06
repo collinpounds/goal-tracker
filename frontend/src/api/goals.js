@@ -56,8 +56,26 @@ api.interceptors.response.use(
 );
 
 export const goalService = {
-  async getAllGoals() {
-    const response = await api.get('/api/goals');
+  async getAllGoals(params = {}) {
+    // Build query string from params
+    const queryParams = new URLSearchParams();
+
+    if (params.search) queryParams.append('search', params.search);
+    if (params.status && params.status.length > 0) {
+      params.status.forEach(s => queryParams.append('status', s));
+    }
+    if (params.category_ids && params.category_ids.length > 0) {
+      params.category_ids.forEach(id => queryParams.append('category_ids', id));
+    }
+    if (params.target_date_from) queryParams.append('target_date_from', params.target_date_from);
+    if (params.target_date_to) queryParams.append('target_date_to', params.target_date_to);
+    if (params.sort_by) queryParams.append('sort_by', params.sort_by);
+    if (params.sort_order) queryParams.append('sort_order', params.sort_order);
+
+    const queryString = queryParams.toString();
+    const url = queryString ? `/api/goals?${queryString}` : '/api/goals';
+
+    const response = await api.get(url);
     return response.data;
   },
 

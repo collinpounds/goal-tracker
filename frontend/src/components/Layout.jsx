@@ -30,16 +30,16 @@ const Layout = () => {
     if (result.payload && team_ids && team_ids.length > 0) {
       const goalId = result.payload.id;
       await dispatch(assignGoalToTeams({ goalId, teamIds: team_ids }));
+
+      // Only refresh team goals if we assigned to teams
+      const teamIdMatch = location.pathname.match(/\/teams\/(\d+)/);
+      if (teamIdMatch) {
+        dispatch(fetchTeamGoals(parseInt(teamIdMatch[1])));
+      }
     }
 
-    // Refresh goals list
-    dispatch(fetchGoals());
-
-    // If on a team page, refresh team goals
-    const teamIdMatch = location.pathname.match(/\/teams\/(\d+)/);
-    if (teamIdMatch) {
-      dispatch(fetchTeamGoals(parseInt(teamIdMatch[1])));
-    }
+    // Redux already added the goal to state via createGoal.fulfilled
+    // No need to fetchGoals() - it would cause unnecessary re-renders
   };
 
   const handleUpdateGoal = async (goalData) => {
@@ -49,16 +49,17 @@ const Layout = () => {
 
     if (result.payload && team_ids && team_ids.length > 0) {
       await dispatch(assignGoalToTeams({ goalId: editingGoal.id, teamIds: team_ids }));
+
+      // Only refresh team goals if we updated team assignments
+      const teamIdMatch = location.pathname.match(/\/teams\/(\d+)/);
+      if (teamIdMatch) {
+        dispatch(fetchTeamGoals(parseInt(teamIdMatch[1])));
+      }
     }
 
-    // Refresh goals list
-    dispatch(fetchGoals());
-
-    // If on a team page, refresh team goals
-    const teamIdMatch = location.pathname.match(/\/teams\/(\d+)/);
-    if (teamIdMatch) {
-      dispatch(fetchTeamGoals(parseInt(teamIdMatch[1])));
-    }
+    // Redux already updated the goal in state via updateGoal.fulfilled
+    // Both goalSlice and teamSlice handle the update optimistically
+    // No need to fetchGoals() - it would cause unnecessary re-renders
   };
 
   const handleCancelEdit = () => {
