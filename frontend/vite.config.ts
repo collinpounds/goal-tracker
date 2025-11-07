@@ -18,11 +18,5 @@ export default defineConfig({
         changeOrigin: true,
       }
     }
-  },
-  esbuild: {
-    // Ensure TypeScript is properly handled
-    loader: 'tsx',
-    include: /src\/.*\.[tj]sx?$/,
-    exclude: []
   }
 })

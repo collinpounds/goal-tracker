@@ -219,6 +219,9 @@ const goalSlice = createSlice({
       })
       .addCase(updateGoal.fulfilled, (state, action) => {
         state.loading = false;
+        console.log('[goalSlice] updateGoal.fulfilled - Updated goal:', action.payload);
+        console.log('[goalSlice] Teams in payload:', action.payload.teams);
+        console.log('[goalSlice] Categories in payload:', action.payload.categories);
         const index = state.goals.findIndex((g) => g.id === action.payload.id);
         if (index !== -1) {
           state.goals[index] = action.payload;
