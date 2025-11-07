@@ -2,6 +2,7 @@ import { createSlice, createAsyncThunk, PayloadAction } from '@reduxjs/toolkit';
 import * as categoryAPI from '../api/categories';
 import { Category, CategoryCreate, CategoryUpdate } from '../types';
 import { Goal } from '../types';
+import { updateGoal, deleteGoal } from './goalSlice';
 
 // Async thunks
 export const fetchCategories = createAsyncThunk<Category[], void, { rejectValue: string }>(
@@ -244,6 +245,23 @@ const categorySlice = createSlice({
       .addCase(deleteCategory.rejected, (state, action) => {
         state.loading = false;
         state.error = action.payload || 'An error occurred';
+      })
+
+      // =====================================================
+      // LISTEN TO GOAL UPDATES (from goalSlice)
+      // =====================================================
+      .addCase(updateGoal.fulfilled, (state, action) => {
+        // Update the goal in the categoryGoals array if it exists
+        const updatedGoal = action.payload;
+        const goalIndex = state.categoryGoals.findIndex((g) => g.id === updatedGoal.id);
+        if (goalIndex !== -1) {
+          state.categoryGoals[goalIndex] = updatedGoal;
+        }
+      })
+      .addCase(deleteGoal.fulfilled, (state, action) => {
+        // Remove the goal from categoryGoals array
+        const deletedGoalId = action.payload;
+        state.categoryGoals = state.categoryGoals.filter((g) => g.id !== deletedGoalId);
       });
   },
 });
