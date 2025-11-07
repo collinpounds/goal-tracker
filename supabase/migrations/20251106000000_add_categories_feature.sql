@@ -44,6 +44,18 @@ ALTER TABLE goal_categories ENABLE ROW LEVEL SECURITY;
 
 -- CATEGORIES POLICIES --
 
+-- Drop existing policies if they exist to make migration idempotent
+DO $$
+BEGIN
+    DROP POLICY IF EXISTS "Users can view own categories" ON categories;
+    DROP POLICY IF EXISTS "Users can create own categories" ON categories;
+    DROP POLICY IF EXISTS "Users can update own categories" ON categories;
+    DROP POLICY IF EXISTS "Users can delete own categories" ON categories;
+    DROP POLICY IF EXISTS "Users can view own goal categories" ON goal_categories;
+    DROP POLICY IF EXISTS "Users can assign categories to own goals" ON goal_categories;
+    DROP POLICY IF EXISTS "Users can remove categories from own goals" ON goal_categories;
+END $$;
+
 -- Users can view their own categories
 CREATE POLICY "Users can view own categories" ON categories
     FOR SELECT

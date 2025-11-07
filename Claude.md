@@ -266,11 +266,42 @@ GoalUpdate: (all fields optional)
 
 ### Database Changes
 
-1. Modify Supabase schema via Supabase Dashboard or SQL Editor
-2. Update Pydantic models in [backend/app/models/](backend/app/models/) (e.g., `goal.py`)
-3. Update corresponding router CRUD logic in [backend/app/routers/](backend/app/routers/)
+**Process:**
+1. Create a new migration file in `supabase/migrations/` with format `<timestamp>_description.sql`
+2. Write idempotent SQL (see Migration Best Practices below)
+3. Update Pydantic models in [backend/app/models/](backend/app/models/) (e.g., `goal.py`)
+4. Update corresponding router CRUD logic in [backend/app/routers/](backend/app/routers/)
 
-**Note:** Using Supabase as the source of truth for database schema. Make all schema changes directly in Supabase Dashboard.
+**Migration Best Practices:**
+
+Always make migrations **idempotent** (safe to run multiple times) to prevent deployment failures:
+
+```sql
+-- ✅ Tables, Indexes, Constraints - Use IF NOT EXISTS
+CREATE TABLE IF NOT EXISTS my_table (
+    id BIGSERIAL PRIMARY KEY,
+    name VARCHAR(100) NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_my_table_name ON my_table(name);
+
+-- ✅ Policies - Drop first, then create (no IF NOT EXISTS support)
+DO $$
+BEGIN
+    DROP POLICY IF EXISTS "Policy name" ON my_table;
+END $$;
+
+CREATE POLICY "Policy name" ON my_table
+    FOR SELECT
+    USING (user_id = auth.uid());
+
+-- ✅ Enable RLS - Safe to run multiple times
+ALTER TABLE my_table ENABLE ROW LEVEL SECURITY;
+```
+
+**Why this matters:** Cloud Run and CI/CD deployments can fail if migrations try to create objects that already exist. Using this pattern ensures migrations succeed whether objects exist or not.
+
+**Note:** Using Supabase migrations for schema changes. Version control all SQL files in `supabase/migrations/`.
 
 ### Migrating from requirements.txt to pyproject.toml
 

@@ -446,6 +446,54 @@ The application uses 9 PostgreSQL tables with Row Level Security (RLS) policies:
 - **Cascade Deletes**: Properly configured foreign key relationships
 - **Constraints**: Unique constraints on team names, category names, junction tables
 
+### Database Migrations
+
+All database schema changes are managed through **idempotent SQL migrations** in the `supabase/migrations/` directory.
+
+**Migration Best Practices:**
+
+Always write migrations that are safe to run multiple times to prevent deployment failures:
+
+```sql
+-- ✅ Tables, Indexes, Constraints - Use IF NOT EXISTS
+CREATE TABLE IF NOT EXISTS my_table (
+    id BIGSERIAL PRIMARY KEY,
+    name VARCHAR(100) NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS idx_my_table_name ON my_table(name);
+
+-- ✅ Policies - Drop first, then create (no IF NOT EXISTS support)
+DO $$
+BEGIN
+    DROP POLICY IF EXISTS "Policy name" ON my_table;
+END $$;
+
+CREATE POLICY "Policy name" ON my_table
+    FOR SELECT
+    USING (user_id = auth.uid());
+
+-- ✅ Enable RLS - Safe to run multiple times
+ALTER TABLE my_table ENABLE ROW LEVEL SECURITY;
+```
+
+**Why this matters:** Cloud Run and CI/CD deployments can fail if migrations try to create objects that already exist. Using this pattern ensures migrations succeed whether objects exist or not.
+
+**Creating New Migrations:**
+
+```bash
+# Create a new migration file
+./bin/supabase migration new add_feature_name
+
+# Edit the generated file in supabase/migrations/
+# Follow the idempotent patterns above
+
+# Test locally
+./bin/supabase db reset  # Resets and applies all migrations
+
+# Deploy (automatic via GitHub Actions on push to main)
+```
+
 ## Deployment to Cloud Run
 
 The application uses a **unified container** that includes both frontend and backend, deployed as a single Cloud Run service.
