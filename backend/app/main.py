@@ -5,7 +5,7 @@ from fastapi.responses import FileResponse
 from pathlib import Path
 
 from .config import settings
-from .routers import goals, health, teams, categories
+from .routers import goals, health, teams, categories, statuses, files
 
 app = FastAPI(
     title="Goal Tracker API",
@@ -56,6 +56,14 @@ This API uses Supabase (PostgreSQL) for data persistence. All timestamps are sto
             "description": "Operations for managing teams, team members, invitations, and team goals. Teams enable collaborative goal tracking.",
         },
         {
+            "name": "statuses",
+            "description": "Operations for managing custom statuses. Users and teams can define custom status values beyond the defaults.",
+        },
+        {
+            "name": "files",
+            "description": "Operations for managing goal file attachments. Upload, download, and delete files associated with goals.",
+        },
+        {
             "name": "health",
             "description": "System health and status endpoints. Use these to monitor the API and database connectivity.",
         },
@@ -83,6 +91,8 @@ app.include_router(health.router, prefix="/api", tags=["health"])
 app.include_router(goals.router, prefix="/api", tags=["goals"])
 app.include_router(categories.router, prefix="/api", tags=["categories"])
 app.include_router(teams.router, prefix="/api", tags=["teams"])
+app.include_router(statuses.router, prefix="/api", tags=["statuses"])
+app.include_router(files.router, prefix="/api", tags=["files"])
 
 # Mount static files (frontend dist folder)
 static_dir = Path(__file__).parent.parent / "static"

@@ -1,5 +1,6 @@
 import { Team } from './team.types';
 import { Category } from './category.types';
+import { GoalFile } from './file.types';
 
 export enum GoalStatus {
   PENDING = 'pending',
@@ -11,21 +12,29 @@ export interface Goal {
   id: number;
   title: string;
   description: string | null;
-  status: GoalStatus;
+  status: string; // Now supports custom statuses (not just enum)
   target_date: string | null; // ISO datetime string
   created_at: string; // ISO datetime string
   is_public: boolean;
   user_id: string;
+  parent_goal_id: number | null; // For sub-goals
+  display_order: number; // Order within parent
+  template_id: number | null; // Template used to create this goal
   teams?: Team[];
   categories?: Category[];
+  files?: GoalFile[];
+  subgoals?: Goal[]; // Recursive sub-goals
 }
 
 export interface GoalCreate {
   title: string;
   description?: string | null;
-  status?: GoalStatus;
+  status?: string; // Custom status support
   target_date?: string | null;
   is_public?: boolean;
+  parent_goal_id?: number | null;
+  display_order?: number;
+  template_id?: number | null;
   team_ids?: number[];
   category_ids?: number[];
 }
@@ -33,15 +42,17 @@ export interface GoalCreate {
 export interface GoalUpdate {
   title?: string;
   description?: string | null;
-  status?: GoalStatus;
+  status?: string; // Custom status support
   target_date?: string | null;
   is_public?: boolean;
+  parent_goal_id?: number | null;
+  display_order?: number;
   team_ids?: number[];
   category_ids?: number[];
 }
 
 export interface GoalFilters {
-  status: GoalStatus[];
+  status: string[]; // Now supports custom status values
   team_ids: number[];
   category_ids: number[];
   search: string;

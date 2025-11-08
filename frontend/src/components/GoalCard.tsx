@@ -23,22 +23,31 @@ interface GoalCardProps {
   onEdit?: (goal: Goal) => void;
   onDelete?: (goalId: number) => void;
   onStatusChange?: (goalId: number, status: string) => void;
+  onCardClick?: (goal: Goal) => void;
   teams?: Team[];
   categories?: Category[];
 }
 
-export default function GoalCard({ goal, onEdit, onDelete, onStatusChange, teams = [], categories = [] }: GoalCardProps) {
+export default function GoalCard({ goal, onEdit, onDelete, onStatusChange, onCardClick, teams = [], categories = [] }: GoalCardProps) {
   const formatDate = (dateString: string | null): string => {
     if (!dateString) return 'No target date';
     return new Date(dateString).toLocaleDateString();
   };
 
+  const fileCount = goal.files?.length || 0;
+
   return (
-    <div className="bg-white rounded-xl shadow-lg p-6 hover:shadow-2xl transition-all duration-300 border border-gray-100 hover:border-blue-200 transform hover:-translate-y-1 relative">
+    <div
+      className="bg-white rounded-xl shadow-lg p-6 hover:shadow-2xl transition-all duration-300 border border-gray-100 hover:border-blue-200 transform hover:-translate-y-1 relative cursor-pointer"
+      onClick={() => onCardClick?.(goal)}
+    >
       {/* Delete Button - Top Right */}
       {onDelete && (
         <button
-          onClick={() => onDelete(goal.id)}
+          onClick={(e) => {
+            e.stopPropagation(); // Prevent card click
+            onDelete(goal.id);
+          }}
           className="absolute top-3 right-3 p-1 text-gray-400 hover:text-red-600 hover:bg-red-50 rounded transition-colors"
           title="Delete goal"
         >
@@ -56,7 +65,7 @@ export default function GoalCard({ goal, onEdit, onDelete, onStatusChange, teams
           </span>
         </div>
 
-        {/* Badges Row - Team badges and Public badge only */}
+        {/* Badges Row - Team badges, Public badge, and File count badge */}
         <div className="flex items-center gap-2 flex-wrap">
           {goal.is_public && (
             <span className="inline-flex items-center gap-1 px-2 py-1 bg-blue-50 text-blue-600 rounded-full text-xs font-medium border border-blue-200">
@@ -67,8 +76,18 @@ export default function GoalCard({ goal, onEdit, onDelete, onStatusChange, teams
             </span>
           )}
 
+          {/* File Count Badge */}
+          {fileCount > 0 && (
+            <span className="inline-flex items-center gap-1 px-2 py-1 bg-purple-50 text-purple-600 rounded-full text-xs font-medium border border-purple-200">
+              <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+              </svg>
+              {fileCount} {fileCount === 1 ? 'file' : 'files'}
+            </span>
+          )}
+
           {/* Team Badges */}
-          {teams && teams.length > 0 && teams.map((team) => (
+          {Array.isArray(teams) && teams.length > 0 && teams.map((team) => (
             <TeamTag key={team.id} team={team} size="md" />
           ))}
         </div>
@@ -94,12 +113,16 @@ export default function GoalCard({ goal, onEdit, onDelete, onStatusChange, teams
       </div>
 
       {onStatusChange || onEdit ? (
-        <div className="space-y-2">
+        <div className="space-y-2" onClick={(e) => e.stopPropagation()}>
           <div className="flex gap-2">
             {onStatusChange && (
               <select
                 value={goal.status}
-                onChange={(e) => onStatusChange(goal.id, e.target.value)}
+                onChange={(e) => {
+                  e.stopPropagation();
+                  onStatusChange(goal.id, e.target.value);
+                }}
+                onClick={(e) => e.stopPropagation()}
                 className="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white shadow-sm hover:border-gray-400 transition-colors"
               >
                 <option value="pending">Pending</option>
@@ -110,7 +133,10 @@ export default function GoalCard({ goal, onEdit, onDelete, onStatusChange, teams
 
             {onEdit && (
               <button
-                onClick={() => onEdit(goal)}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onEdit(goal);
+                }}
                 className="px-4 py-2 bg-gradient-to-r from-blue-500 to-indigo-600 text-white rounded-lg hover:from-blue-600 hover:to-indigo-700 transition-all duration-200 shadow-md hover:shadow-lg transform hover:scale-105 flex items-center gap-1"
               >
                 <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -124,7 +150,10 @@ export default function GoalCard({ goal, onEdit, onDelete, onStatusChange, teams
           {/* Goal Complete Button - Only show if not already completed */}
           {onStatusChange && goal.status !== 'completed' && (
             <button
-              onClick={() => onStatusChange(goal.id, 'completed')}
+              onClick={(e) => {
+                e.stopPropagation();
+                onStatusChange(goal.id, 'completed');
+              }}
               className="w-full px-4 py-3 bg-gradient-to-r from-green-500 to-emerald-600 text-white rounded-lg hover:from-green-600 hover:to-emerald-700 transition-all duration-200 shadow-md hover:shadow-xl transform hover:scale-105 font-bold text-lg flex items-center justify-center gap-2"
             >
               <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -135,7 +164,7 @@ export default function GoalCard({ goal, onEdit, onDelete, onStatusChange, teams
           )}
 
           {/* Category Pills Section - Below Complete Button */}
-          {categories && categories.length > 0 && (
+          {Array.isArray(categories) && categories.length > 0 && (
             <div className="pt-2 border-t border-gray-200">
               <div className="flex items-center gap-2 flex-wrap">
                 <span className="text-xs text-gray-500 font-medium">Categories:</span>

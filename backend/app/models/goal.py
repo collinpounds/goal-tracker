@@ -36,9 +36,9 @@ class GoalBase(BaseModel):
         description="Detailed description of the goal",
         examples=["Complete the official FastAPI tutorial and build a sample project"]
     )
-    status: GoalStatus = Field(
-        GoalStatus.PENDING,
-        description="Current status of the goal"
+    status: str = Field(
+        "pending",
+        description="Current status of the goal (supports custom statuses)"
     )
     target_date: Optional[datetime] = Field(
         None,
@@ -52,6 +52,19 @@ class GoalBase(BaseModel):
     scope: GoalScope = Field(
         GoalScope.PRIVATE,
         description="Scope of the goal (private, public, or team)"
+    )
+    parent_goal_id: Optional[int] = Field(
+        None,
+        description="ID of parent goal (for sub-goals)"
+    )
+    display_order: int = Field(
+        0,
+        ge=0,
+        description="Order of sub-goal within parent"
+    )
+    template_id: Optional[int] = Field(
+        None,
+        description="ID of template used to create this goal"
     )
 
 
@@ -77,11 +90,14 @@ class GoalCreate(GoalBase):
         goal_data = {
             "title": self.title,
             "description": self.description,
-            "status": self.status.value,
+            "status": self.status,
             "target_date": self.target_date.isoformat() if self.target_date else None,
             "user_id": user_id,
             "is_public": self.is_public,
             "scope": scope.value,
+            "parent_goal_id": self.parent_goal_id,
+            "display_order": self.display_order,
+            "template_id": self.template_id,
         }
 
         response = supabase.table("goals").insert(goal_data).execute()
@@ -105,9 +121,9 @@ class GoalUpdate(BaseModel):
         None,
         description="Updated description for the goal"
     )
-    status: Optional[GoalStatus] = Field(
+    status: Optional[str] = Field(
         None,
-        description="Updated status for the goal"
+        description="Updated status for the goal (supports custom statuses)"
     )
     target_date: Optional[datetime] = Field(
         None,
@@ -121,6 +137,15 @@ class GoalUpdate(BaseModel):
     scope: Optional[GoalScope] = Field(
         None,
         description="Scope of the goal (private, public, or team)"
+    )
+    parent_goal_id: Optional[int] = Field(
+        None,
+        description="Updated parent goal ID (for moving sub-goals)"
+    )
+    display_order: Optional[int] = Field(
+        None,
+        ge=0,
+        description="Updated display order"
     )
 
 
@@ -140,6 +165,22 @@ class Goal(GoalBase):
         ...,
         description="Timestamp when the goal was created (auto-generated)",
         examples=["2025-01-15T10:30:00Z"]
+    )
+    subgoals: Optional[List["Goal"]] = Field(
+        default_factory=list,
+        description="List of sub-goals (recursive)"
+    )
+    files: Optional[List[dict]] = Field(
+        default_factory=list,
+        description="List of file attachments"
+    )
+    teams: Optional[List[dict]] = Field(
+        default_factory=list,
+        description="List of teams this goal is assigned to"
+    )
+    categories: Optional[List[dict]] = Field(
+        default_factory=list,
+        description="List of categories for this goal"
     )
 
     class Config:
@@ -238,6 +279,9 @@ class Goal(GoalBase):
             goal_data_clean = {k: v for k, v in goal_data.items() if k not in ["goal_teams", "goal_categories"]}
             goal_data_clean["teams"] = teams
             goal_data_clean["categories"] = categories
+            # Initialize files and subgoals as empty arrays (will be populated separately if needed)
+            goal_data_clean["files"] = []
+            goal_data_clean["subgoals"] = []
 
             goals_with_relations.append(goal_data_clean)
 
@@ -294,6 +338,9 @@ class Goal(GoalBase):
             goal_data_clean = {k: v for k, v in goal_data.items() if k not in ["goal_teams", "goal_categories"]}
             goal_data_clean["teams"] = teams
             goal_data_clean["categories"] = categories
+            # Initialize files and subgoals as empty arrays (will be populated separately if needed)
+            goal_data_clean["files"] = []
+            goal_data_clean["subgoals"] = []
 
             goals_with_relations.append(goal_data_clean)
 
@@ -344,13 +391,17 @@ class Goal(GoalBase):
         if update_data.description is not None:
             update_dict["description"] = update_data.description
         if update_data.status is not None:
-            update_dict["status"] = update_data.status.value
+            update_dict["status"] = update_data.status
         if update_data.target_date is not None:
             update_dict["target_date"] = update_data.target_date.isoformat()
         if update_data.is_public is not None:
             update_dict["is_public"] = update_data.is_public
         if update_data.scope is not None:
             update_dict["scope"] = update_data.scope.value
+        if update_data.parent_goal_id is not None:
+            update_dict["parent_goal_id"] = update_data.parent_goal_id
+        if update_data.display_order is not None:
+            update_dict["display_order"] = update_data.display_order
 
         if not update_dict:
             # Nothing to update, return self

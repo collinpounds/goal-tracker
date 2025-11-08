@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import {
   fetchGoals,
@@ -11,6 +11,7 @@ import { fetchTeams, assignGoalToTeams } from '../models/teamSlice';
 import { fetchCategories, assignGoalToCategories } from '../models/categorySlice';
 import GoalCard from '../components/GoalCard';
 import GoalForm from '../components/GoalForm';
+import GoalDetailPanel from '../components/GoalDetailPanel';
 import SearchAndFilterBar from '../components/SearchAndFilterBar';
 import { useGoalHandlers } from '../hooks/useGoalHandlers';
 import type { RootState, AppDispatch, Goal, GoalCreate, GoalUpdate, Team, Category } from '../types';
@@ -24,6 +25,10 @@ function GoalsView({ view = 'all' }: GoalsViewProps) {
   const { goals, publicGoals, loading, error, editingGoal, showForm, filters } = useSelector((state: RootState) => state.goals);
   const { teams } = useSelector((state: RootState) => state.teams);
 
+  // State for detail panel
+  const [selectedGoal, setSelectedGoal] = useState<Goal | null>(null);
+  const [isPanelOpen, setIsPanelOpen] = useState(false);
+
   // Use shared goal handlers hook
   const { handleEdit, handleDelete, handleStatusChange } = useGoalHandlers();
 
@@ -32,14 +37,14 @@ function GoalsView({ view = 'all' }: GoalsViewProps) {
   let title = 'All Goals';
 
   if (view === 'private') {
-    displayGoals = goals.filter(g => !g.is_public);
+    displayGoals = Array.isArray(goals) ? goals.filter(g => !g.is_public) : [];
     title = 'Private Goals';
   } else if (view === 'public') {
-    displayGoals = publicGoals;
+    displayGoals = Array.isArray(publicGoals) ? publicGoals : [];
     title = 'Public Goals';
   } else {
     // 'all' view - show user's goals (private + public)
-    displayGoals = goals;
+    displayGoals = Array.isArray(goals) ? goals : [];
     title = 'All Goals';
   }
 
@@ -115,6 +120,25 @@ function GoalsView({ view = 'all' }: GoalsViewProps) {
 
   const handleShowForm = () => {
     dispatch(setShowForm(true));
+  };
+
+  // Handler for opening detail panel
+  const handleCardClick = (goal: Goal) => {
+    setSelectedGoal(goal);
+    setIsPanelOpen(true);
+  };
+
+  // Handler for closing detail panel
+  const handleClosePanel = () => {
+    setIsPanelOpen(false);
+    // Small delay before clearing selected goal for smooth animation
+    setTimeout(() => setSelectedGoal(null), 300);
+  };
+
+  // Handler for when goal is updated from detail panel
+  const handleGoalUpdate = () => {
+    // Refresh goals to get updated data
+    dispatch(fetchGoals(filters));
   };
 
   // Helper to get teams for a goal
@@ -206,10 +230,19 @@ function GoalsView({ view = 'all' }: GoalsViewProps) {
               onEdit={!isReadOnly ? handleEdit : undefined}
               onDelete={!isReadOnly ? handleDelete : undefined}
               onStatusChange={!isReadOnly ? handleStatusChange : undefined}
+              onCardClick={handleCardClick}
             />
           ))}
         </div>
       )}
+
+      {/* Goal Detail Panel */}
+      <GoalDetailPanel
+        goal={selectedGoal}
+        isOpen={isPanelOpen}
+        onClose={handleClosePanel}
+        onUpdate={handleGoalUpdate}
+      />
     </div>
   );
 }
