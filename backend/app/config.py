@@ -14,8 +14,14 @@ class Settings:
     # Supabase
     SUPABASE_URL: str = os.getenv("SUPABASE_URL", "")
     SUPABASE_ANON_KEY: str = os.getenv("SUPABASE_ANON_KEY", "")
-    SUPABASE_JWT_SECRET: str = os.getenv("SUPABASE_JWT_SECRET", "")
     SUPABASE_SERVICE_ROLE_KEY: str = os.getenv("SUPABASE_SERVICE_ROLE_KEY", "")
+
+    # JWT Verification - RS256 with JWKS (recommended)
+    # Get from: Supabase Dashboard -> Settings -> API -> JWT Settings -> JWKS URL
+    SUPABASE_JWKS_URL: str = os.getenv("SUPABASE_JWKS_URL", "")
+
+    # Legacy HS256 fallback (deprecated - migrate to JWKS)
+    SUPABASE_JWT_SECRET: str = os.getenv("SUPABASE_JWT_SECRET", "")
 
     # Server
     PORT: int = int(os.getenv("PORT", "8000"))

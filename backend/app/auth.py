@@ -1,7 +1,12 @@
 """
 Authentication module for JWT token verification and user extraction.
+
+Supports both:
+- RS256 with JWKS (recommended) - uses public key from Supabase JWKS endpoint
+- HS256 with JWT secret (legacy fallback)
 """
 import jwt
+from jwt import PyJWKClient
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from typing import Dict, Optional
@@ -11,10 +16,24 @@ from app.config import settings
 # Security scheme for FastAPI
 security = HTTPBearer()
 
+# JWKS client for RS256 verification (cached)
+_jwks_client: Optional[PyJWKClient] = None
+
+
+def _get_jwks_client() -> Optional[PyJWKClient]:
+    """Get or create the JWKS client for RS256 verification."""
+    global _jwks_client
+    if _jwks_client is None and settings.SUPABASE_JWKS_URL:
+        _jwks_client = PyJWKClient(settings.SUPABASE_JWKS_URL, cache_keys=True)
+    return _jwks_client
+
 
 def verify_jwt_token(token: str) -> Dict:
     """
     Verify and decode a Supabase JWT token.
+
+    Uses RS256 with JWKS if SUPABASE_JWKS_URL is configured (recommended),
+    otherwise falls back to HS256 with SUPABASE_JWT_SECRET (legacy).
 
     Args:
         token: The JWT token string to verify
@@ -26,13 +45,31 @@ def verify_jwt_token(token: str) -> Dict:
         HTTPException: If token is invalid or expired
     """
     try:
-        # Decode and verify the JWT token using Supabase JWT secret
-        payload = jwt.decode(
-            token,
-            settings.SUPABASE_JWT_SECRET,
-            algorithms=["HS256"],
-            audience="authenticated"  # Supabase uses "authenticated" as audience
-        )
+        jwks_client = _get_jwks_client()
+
+        if jwks_client:
+            # RS256 verification using JWKS (recommended)
+            signing_key = jwks_client.get_signing_key_from_jwt(token)
+            payload = jwt.decode(
+                token,
+                signing_key.key,
+                algorithms=["RS256"],
+                audience="authenticated"
+            )
+        elif settings.SUPABASE_JWT_SECRET:
+            # Legacy HS256 fallback
+            payload = jwt.decode(
+                token,
+                settings.SUPABASE_JWT_SECRET,
+                algorithms=["HS256"],
+                audience="authenticated"
+            )
+        else:
+            raise HTTPException(
+                status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+                detail="JWT verification not configured. Set SUPABASE_JWKS_URL or SUPABASE_JWT_SECRET.",
+            )
+
         return payload
     except jwt.ExpiredSignatureError:
         raise HTTPException(
