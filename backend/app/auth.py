@@ -5,6 +5,7 @@ Supports both:
 - RS256 with JWKS (recommended) - uses public key from Supabase JWKS endpoint
 - HS256 with JWT secret (legacy fallback)
 """
+import logging
 import jwt
 from jwt import PyJWKClient
 from fastapi import Depends, HTTPException, status
@@ -12,6 +13,8 @@ from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from typing import Dict, Optional
 
 from app.config import settings
+
+logger = logging.getLogger(__name__)
 
 # Security scheme for FastAPI
 security = HTTPBearer()
@@ -79,12 +82,14 @@ def verify_jwt_token(token: str) -> Dict:
             headers={"WWW-Authenticate": "Bearer"},
         )
     except jwt.InvalidTokenError as e:
+        logger.error(f"Invalid token error: {str(e)}")
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail=f"Invalid authentication token: {str(e)}",
             headers={"WWW-Authenticate": "Bearer"},
         )
     except Exception as e:
+        logger.error(f"JWT verification error: {str(e)}")
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail=f"Could not validate credentials: {str(e)}",
