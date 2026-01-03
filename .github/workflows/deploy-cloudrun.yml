@@ -75,7 +75,8 @@ jobs:
         run: |
           gcloud builds submit \
             --config cloudbuild.yaml \
-            --project ${{ env.PROJECT_ID }}
+            --project ${{ env.PROJECT_ID }} \
+            --substitutions=_VITE_SUPABASE_URL=${{ secrets.VITE_SUPABASE_URL }},_VITE_SUPABASE_ANON_KEY=${{ secrets.VITE_SUPABASE_ANON_KEY }}
 
       - name: Get Cloud Run service URL
         id: get-url

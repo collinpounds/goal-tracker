@@ -48,12 +48,13 @@ def verify_jwt_token(token: str) -> Dict:
         jwks_client = _get_jwks_client()
 
         if jwks_client:
-            # RS256 verification using JWKS (recommended)
+            # Asymmetric verification using JWKS (recommended)
+            # Supports both RS256 (RSA) and ES256 (ECC P-256)
             signing_key = jwks_client.get_signing_key_from_jwt(token)
             payload = jwt.decode(
                 token,
                 signing_key.key,
-                algorithms=["RS256"],
+                algorithms=["RS256", "ES256"],
                 audience="authenticated"
             )
         elif settings.SUPABASE_JWT_SECRET:

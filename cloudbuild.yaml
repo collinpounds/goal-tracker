@@ -1,3 +1,11 @@
+# Cloud Build configuration
+# Frontend build args are passed via substitutions from GitHub Actions
+# Backend secrets are pulled from Secret Manager at runtime
+
+substitutions:
+  _VITE_SUPABASE_URL: ''
+  _VITE_SUPABASE_ANON_KEY: ''
+
 steps:
   # Build the container image
   - name: 'gcr.io/cloud-builders/docker'
@@ -10,18 +18,18 @@ steps:
       - '--build-arg'
       - 'VITE_API_URL='
       - '--build-arg'
-      - 'VITE_SUPABASE_URL=https://bnmdrvslwmuimlpkqqfq.supabase.co'
+      - 'VITE_SUPABASE_URL=${_VITE_SUPABASE_URL}'
       - '--build-arg'
-      - 'VITE_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJubWRydnNsd211aW1scGtxcWZxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjIyMTg5MDEsImV4cCI6MjA3Nzc5NDkwMX0.4Sa_IlZ_KLetqlDPeHyYhueDWw72XqpPwZDoOERQjKg'
+      - 'VITE_SUPABASE_ANON_KEY=${_VITE_SUPABASE_ANON_KEY}'
       - '.'
-  
+
   # Push the container image to Container Registry
   - name: 'gcr.io/cloud-builders/docker'
-    args: 
+    args:
       - 'push'
       - 'gcr.io/$PROJECT_ID/goal-tracker'
-  
-  # Deploy container image to Cloud Run
+
+  # Deploy container image to Cloud Run with secrets from Secret Manager
   - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
     entrypoint: gcloud
     args:
@@ -35,8 +43,8 @@ steps:
       - '--platform'
       - 'managed'
       - '--allow-unauthenticated'
-      - '--set-env-vars'
-      - 'SUPABASE_URL=https://bnmdrvslwmuimlpkqqfq.supabase.co,SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJubWRydnNsd211aW1scGtxcWZxIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjIyMTg5MDEsImV4cCI6MjA3Nzc5NDkwMX0.4Sa_IlZ_KLetqlDPeHyYhueDWw72XqpPwZDoOERQjKg,SUPABASE_JWT_SECRET=xLsctlfyirDKxMGpDdca05n1IK2cxqcn0ceeA6hE0HrrNBMRty7Ad8JsjDnE6L/GFBJytOhmxmT32qT8mD+A8g==,SUPABASE_SERVICE_ROLE_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImJubWRydnNsd211aW1scGtxcWZxIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc2MjIxODkwMSwiZXhwIjoyMDc3Nzk0OTAxfQ.0j_apsI6ghNa987OMxtzo1nlBV_USMAMxTQd-64fhp8'
+      - '--set-secrets'
+      - 'SUPABASE_URL=SUPABASE_URL:latest,SUPABASE_ANON_KEY=SUPABASE_ANON_KEY:latest,SUPABASE_SERVICE_ROLE_KEY=SUPABASE_SERVICE_ROLE_KEY:latest,SUPABASE_JWKS_URL=SUPABASE_JWKS_URL:latest'
 
 images:
   - 'gcr.io/$PROJECT_ID/goal-tracker'
