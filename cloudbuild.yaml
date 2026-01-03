@@ -29,33 +29,20 @@ steps:
       - 'push'
       - 'gcr.io/$PROJECT_ID/goal-tracker'
 
-  # Clear existing env vars that conflict with secrets (one-time migration)
+  # Deploy container image to Cloud Run with secrets from Secret Manager
+  # Use --clear-env-vars to remove any conflicting env vars, then set secrets
   - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
     entrypoint: bash
     args:
       - '-c'
       - |
-        gcloud run services update goal-tracker \
+        gcloud run deploy goal-tracker \
+          --image gcr.io/$PROJECT_ID/goal-tracker \
           --region us-central1 \
-          --remove-env-vars SUPABASE_URL,SUPABASE_ANON_KEY,SUPABASE_SERVICE_ROLE_KEY,SUPABASE_JWKS_URL \
-          --quiet || true
-
-  # Deploy container image to Cloud Run with secrets from Secret Manager
-  - name: 'gcr.io/google.com/cloudsdktool/cloud-sdk'
-    entrypoint: gcloud
-    args:
-      - 'run'
-      - 'deploy'
-      - 'goal-tracker'
-      - '--image'
-      - 'gcr.io/$PROJECT_ID/goal-tracker'
-      - '--region'
-      - 'us-central1'
-      - '--platform'
-      - 'managed'
-      - '--allow-unauthenticated'
-      - '--set-secrets'
-      - 'SUPABASE_URL=SUPABASE_URL:latest,SUPABASE_ANON_KEY=SUPABASE_ANON_KEY:latest,SUPABASE_SERVICE_ROLE_KEY=SUPABASE_SERVICE_ROLE_KEY:latest,SUPABASE_JWKS_URL=SUPABASE_JWKS_URL:latest'
+          --platform managed \
+          --allow-unauthenticated \
+          --clear-env-vars \
+          --set-secrets=SUPABASE_URL=SUPABASE_URL:latest,SUPABASE_ANON_KEY=SUPABASE_ANON_KEY:latest,SUPABASE_SERVICE_ROLE_KEY=SUPABASE_SERVICE_ROLE_KEY:latest,SUPABASE_JWKS_URL=SUPABASE_JWKS_URL:latest
 
 images:
   - 'gcr.io/$PROJECT_ID/goal-tracker'
